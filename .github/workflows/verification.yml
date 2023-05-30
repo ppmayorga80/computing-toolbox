@@ -26,7 +26,7 @@ jobs:
       - name: "Run Pylint Code Analyzer"
         run: |
           pip install -r <(cat requirements-local.txt | grep pylint)
-          bash scripts/lint.sh
+          bash scripts/pylint.sh
         
 
   unit_test:
@@ -54,5 +54,5 @@ jobs:
           pip install -r requirements-local.txt
 
       - name: "Run Unit Tests"
-        run: bash scripts/test.sh
+        run: bash scripts/pytest.sh
 
