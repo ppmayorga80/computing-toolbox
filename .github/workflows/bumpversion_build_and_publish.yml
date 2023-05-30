@@ -59,8 +59,8 @@ jobs:
           echo MINOR_VERSION_COUNT=${{needs.get_commit_count.outputs.minor_version_count}} >> "$GITHUB_ENV"
           echo MAJOR_VERSION_COUNT=${{needs.get_commit_count.outputs.major_version_count}} >> "$GITHUB_ENV"
 
-      - name: "Install bump2version & Bump Version"
-        run: pip install bump2version
+      - name: "Install bump2version"
+        run: pip install -r <(cat requirements-local.txt | grep bump2version)
 
       - name: "Bumped"
         run: echo "BUMPED=FALSE" >> "$GITHUB_ENV"
@@ -113,7 +113,7 @@ jobs:
           python-version: "3.10"
 
       - name: Install pypa/build
-        run: pip install build
+        run: pip install -r <(cat requirements-local.txt | grep build)
 
       - name: Build a binary wheel
         run: python3 -m build
