@@ -1,0 +1,19 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+bump2version = "==0.0.0"
+
+[dev-packages]
+
+[requires]
+python_version = "3.10"
+
+[scripts]
+install = "bash install.sh"
+version = "python -c \"from computing_toolbox import __version__;print(__version__)\""
+yapf = "bash scripts/yapf.sh"
+lint = "bash scripts/pylint.sh"
+test = "bash scripts/pytest.sh"
