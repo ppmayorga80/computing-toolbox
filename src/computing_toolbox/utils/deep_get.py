@@ -10,10 +10,10 @@
 
 """
 
-from typing import Union, List
+from typing import Union
 
 
-def deep_get(obj: Union[dict, List[any]], path: List[Union[str, int]],
+def deep_get(obj: Union[dict, list], path: list[Union[str, int]],
              default_value: any):
     """Gets the value at `path` of `x`.
     If the resolved value is None or some value in path doesn't exist,
