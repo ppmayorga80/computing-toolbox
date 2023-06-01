@@ -29,7 +29,10 @@ class Gs:
 
     @classmethod
     def exists(cls, path: str) -> bool:
-        """Test if a file or directory exists in Google Cloud Storage"""
+        """Test if a file or directory exists in Google Cloud Storage
+        if path is a directory make sure to write a '/' at the end of `path`
+
+        """
         try:
             _ = smart_open.open(path)
             return True
@@ -37,7 +40,7 @@ class Gs:
             return False
 
     @classmethod
-    def list_files(cls, path: str, re_filter: str = "") -> Sequence[str]:
+    def list_files(cls, path: str, re_filter: str = r".*") -> Sequence[str]:
         """Given a path and a regex filter, list all files/dirs that match the filter
 
         :param path: the initial path where we start the search
@@ -47,7 +50,7 @@ class Gs:
         # compute the bucket and object names
         bucket_name, object_name = cls.split(path)
         # define if we have a regex function
-        re_filter_fn = re.compile(re_filter) if re_filter else None
+        re_filter_fn = re.compile(re_filter)
 
         # 1. walk over all objects within the path in the form (bucket_name,object_name)
         client = storage.Client()
@@ -55,10 +58,6 @@ class Gs:
             # 1.1 build the filename
             filename = cls.join(bucket_name, blob.name)
             # 1.2 decide if we have a regex function
-            if re_filter_fn:
-                # 1.2.1 if so, yield only the filename that pass the regex filter
-                if re_filter_fn.findall(filename):
-                    yield filename
-            # 1.3 if we don't have a regex function, no filter is applied
-            else:
+            # 1.2.1 if so, yield only the filename that pass the regex filter
+            if re_filter_fn.findall(filename):
                 yield filename

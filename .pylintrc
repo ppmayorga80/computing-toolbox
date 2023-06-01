@@ -192,8 +192,8 @@ good-names=i,
            xi,yi,zi,ui,vi,wi,ai,bi,ci,mi,ni,
            xj,yj,zj,uj,vj,wj,aj,bj,cj,mj,nj,
            xk,yk,zk,uk,vk,wk,ak,bk,ck,mk,nk,
-           s,t,t0,t1,dt
-           ex,
+           s,t,t0,t1,dt,
+           es,ex,
            Run,
            _
 
