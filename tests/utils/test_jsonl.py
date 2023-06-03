@@ -67,7 +67,10 @@ def test_offset_limit_with_class(tmp_path):
     # B. write, count and read with mapping
     Jsonl.write(path, expected_data, tqdm_kwargs={})
     n_lines = Jsonl.count_lines(path, tqdm_kwargs={})
-    data = Jsonl.read(path, mapping_class=MyCounter, limit=n_lines, tqdm_kwargs={})
+    data = Jsonl.read(path,
+                      mapping_class=MyCounter,
+                      limit=n_lines,
+                      tqdm_kwargs={})
     assert data == expected_data
 
     # C. test how to read only 2 elements
