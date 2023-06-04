@@ -1,4 +1,3 @@
-# Copyright (c) 2021-present Divinia, Inc.
 """Test deep_get function"""
 from computing_toolbox.utils.deep_get import deep_get
 
