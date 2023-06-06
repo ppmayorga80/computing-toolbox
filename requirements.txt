@@ -1,8 +1,8 @@
+aiohttp==3.8.4
 elasticsearch==7.13.4
 fake-headers==1.0.2
 google-cloud-secret-manager==2.16.1
 google-cloud-storage==2.9.0
-grequests==0.6.0
 jsons==1.6.3
 python-dateutil==2.8.2
 python-dotenv==1.0.0
