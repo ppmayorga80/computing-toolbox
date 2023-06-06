@@ -111,8 +111,7 @@ class HttpRequest:
 
         tqdm_default_kwargs = {
             "desc": f"HttpRequest.{self.method}({url})",
-            "total": self.max_attempts,
-            "leave": False
+            "total": self.max_attempts
         }
         tqdm_default_kwargs = {
             **tqdm_default_kwargs,
