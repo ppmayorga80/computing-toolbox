@@ -11,9 +11,9 @@ from tqdm import tqdm
 
 from computing_toolbox.utils.tictoc import tic, toc
 
-HTTP_SUCCESS_SYMBOL = "🟢"
-HTTP_FAILURE_SYMBOL = "⭕️"
-HTTP_ERROR_SYMBOL = "🔴"
+HTTP_SUCCESS_SYMBOL = "🟢"  # for status_code==[2**]
+HTTP_FAILURE_SYMBOL = "⭕️"  # for status_code!=[2**]
+HTTP_ERROR_SYMBOL = "🔴"  # for exceptions or errors
 
 
 @dataclass
@@ -319,11 +319,11 @@ class HttpAsyncRequest:
         tqdm_kwargs = {
             **{
                 "desc":
-                f"HttpAsyncRequest.{self.method}x{n_urls}",
+                    f"HttpAsyncRequest.{self.method}x{n_urls}",
                 "total":
-                len(urls),
+                    len(urls),
                 "bar_format":
-                "{l_bar}{bar}| {n:0.1f}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]"
+                    "{l_bar}{bar}| {n:0.1f}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]"
             },
             **tqdm_kwargs
         } if tqdm_kwargs is not None else tqdm_kwargs
@@ -425,7 +425,7 @@ class HttpAsyncRequest:
             # A.2create the progress bar if needed
             range_it = range(len(urls))
             self.progress_bar = tqdm(range_it, **
-                                     tqdm_kwargs) if tqdm_kwargs else None
+            tqdm_kwargs) if tqdm_kwargs else None
 
             # A.3 construct the list of tasks to be requested
             tasks = [
