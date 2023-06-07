@@ -110,7 +110,7 @@ class HttpRequest:
         }
 
         tqdm_default_kwargs = {
-            "desc": f"HttpRequest.{self.method}({url})",
+            "desc": f"HttpRequest.{self.method} Attempts:",
             "total": self.max_attempts
         }
         tqdm_default_kwargs = {
@@ -119,15 +119,18 @@ class HttpRequest:
         } if tqdm_kwargs is not None else tqdm_default_kwargs
 
         range_it = range(self.max_attempts)
-        attempt_iterator = tqdm(
-            range_it, **
-            tqdm_default_kwargs) if tqdm_kwargs is not None else range_it
+        attempt_iterator = range_it if tqdm_kwargs is None else tqdm(
+            range_it, **tqdm_default_kwargs)
 
         self.errors = []
         success = False
         response = None
         postfix_str = "⚪️"
+        break_flag = False
         for k in attempt_iterator:
+            if break_flag:
+                break
+
             self.attempts = k + 1
             if tqdm_kwargs is not None:
                 if len(self.errors) > 0:
@@ -139,12 +142,13 @@ class HttpRequest:
                                             **default_request_kwargs)
                 if 200 <= response.status_code < 300:
                     success = True
+                    break_flag = True
                     if tqdm_kwargs is not None:
                         postfix_str += "→🟢"
                         attempt_iterator.set_postfix_str(postfix_str)
                         attempt_iterator.update()
-                    break
-                # if not break <-> not success then add an error
+
+                # if not break <-> not success, then add an error
                 self.errors.append(
                     ValueError(
                         f"failed request at attempt {k + 1} with status_code:{response.status_code}"

@@ -9,6 +9,7 @@ import aiohttp
 from aiohttp.client_reqrep import ClientResponse
 from tqdm import tqdm
 
+from computing_toolbox.utils.deep_get import deep_get
 from computing_toolbox.utils.tictoc import tic, toc
 
 HTTP_SUCCESS_SYMBOL = "🟢"  # for status_code==[2**]
@@ -287,12 +288,19 @@ class HttpAsyncRequest:
                     tqdm_kwargs: dict or None = None):
         """fix parameters from `request` method, used only before `request` method is executed"""
         n_urls = len(urls)
+
         # fix null values -> list
         params = self._expand_to_list(params, n_urls)
         headers = self._expand_to_list(headers, n_urls)
         timeout = self._expand_to_list(timeout, n_urls)
         allow_redirects = self._expand_to_list(allow_redirects, n_urls)
         proxies = self._expand_to_list(proxies, n_urls)
+
+        # fix proxies for aiohttp (because this class use a string proxy representation)
+        proxies = [
+            deep_get(p, ["https"], deep_get(p, ["http"], None)) if isinstance(
+                p, dict) else p for p in proxies
+        ]
 
         # set default kwargs for request
         request_kwargs = request_kwargs if request_kwargs is not None else {}
@@ -303,7 +311,7 @@ class HttpAsyncRequest:
                 "headers": h,
                 "timeout": t,
                 "allow_redirects": a,
-                "proxies": x,
+                "proxy": x,
             },
             **r
         } for r, p, h, t, a, x in zip(request_kwargs, params, headers, timeout,
@@ -319,11 +327,11 @@ class HttpAsyncRequest:
         tqdm_kwargs = {
             **{
                 "desc":
-                    f"HttpAsyncRequest.{self.method}x{n_urls}",
+                f"HttpAsyncRequest.{self.method}x{n_urls}",
                 "total":
-                    len(urls),
+                len(urls),
                 "bar_format":
-                    "{l_bar}{bar}| {n:0.1f}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]"
+                "{l_bar}{bar}| {n:0.1f}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]"
             },
             **tqdm_kwargs
         } if tqdm_kwargs is not None else tqdm_kwargs
@@ -425,7 +433,7 @@ class HttpAsyncRequest:
             # A.2create the progress bar if needed
             range_it = range(len(urls))
             self.progress_bar = tqdm(range_it, **
-            tqdm_kwargs) if tqdm_kwargs else None
+                                     tqdm_kwargs) if tqdm_kwargs else None
 
             # A.3 construct the list of tasks to be requested
             tasks = [
