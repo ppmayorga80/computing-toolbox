@@ -1,7 +1,40 @@
 """asynchronous request with same options as traditional requests library"""
+import asyncio
 from collections import Counter
+from dataclasses import dataclass, field
 
+import aiohttp
+from aiohttp.client_reqrep import ClientResponse
 from tqdm import tqdm
+
+
+@dataclass
+class HttpAsyncResponse:
+    response: ClientResponse or None = None
+    status_code: int = -1
+    success: bool = False
+    text: str = ""
+    attempts: int = 0
+    response_history: list[ClientResponse or None] = field(default_factory=list)
+    error_history: list[Exception or None] = field(default_factory=list)
+
+    def set(self, response, text):
+        self.response = response
+        self.status_code = response.status
+        self.success = (200 <= response.status < 300)
+        self.text = text
+        self.attempts += 1
+        self.response_history.append(response)
+        self.error_history.append(None)
+
+    def set_error(self, error):
+        self.response = None
+        self.status_code = -1
+        self.success = False
+        self.text = ""
+        self.attempts += 1
+        self.response_history.append(None)
+        self.error_history.append(error)
 
 
 class HttpAsyncRequest:
@@ -30,7 +63,10 @@ class HttpAsyncRequest:
         self.urls: list[str] = []
         self.method: str = ""
         self.responses: list = []
+        self.statuses: list = []
+        self.texts: list = []
         self.responses_history: list[list] = []
+        self.error_history: list[list] = []
         self.success: list[bool] = []
         self.attempts: list[int] = []
         self.execution_time: float = -1
@@ -124,11 +160,80 @@ class HttpAsyncRequest:
         } if tqdm_kwargs is not None else tqdm_kwargs
 
         # return parameters in the same order, now fixed
-        return urls, params, headers, timeout, allow_redirects, proxies, request_kwargs, tqdm_kwargs
+        return urls, request_kwargs, tqdm_kwargs
+
+    async def request_one_url(self,
+                              session: aiohttp.ClientSession,
+                              method,
+                              url,
+                              request_kwargs,
+                              attempt_countdown: int,
+                              last_response: HttpAsyncResponse,
+                              progress_bar: tqdm or None = None
+                              ):
+        # decide if we can continue or not
+        if attempt_countdown == 0:
+            return last_response
+
+        # 1. compute the request step
+        try:
+            async with session.request(
+                    method,
+                    url,
+                    **request_kwargs) as response:
+                # retrieve the html text and the final url
+                text = await response.text()
+                last_response.set(response, text)
+
+                if not last_response.success:
+                    result = await self.request_one_url(
+                        session=session,
+                        method=method,
+                        url=url,
+                        request_kwargs=request_kwargs,
+                        attempt_countdown=attempt_countdown - 1,
+                        last_response=last_response,
+                        progress_bar=progress_bar
+                    )
+                    return result
+
+                return last_response
+
+        except Exception as e:
+            # in case of an exception, report it
+            last_response.set_error(e)
+
+            # 5. in case of an error, retry with the same parameters
+            result = await self.request_one_url(
+                session=session,
+                method=method,
+                url=url,
+                request_kwargs=request_kwargs,
+                attempt_countdown=attempt_countdown - 1,
+                last_response=last_response,
+                progress_bar=progress_bar
+            )
+            return result
+
+
+async def main():
+    my_urls = [
+        'http://python-requests.org',
+        'http://httpbin.org',
+        'http://python-guide.org',
+        'http://kennethreitz.com'
+    ]
+    requester = HttpAsyncRequest(10)
+    urls, request_kwargs, tqdm_kwargs = requester.fix_params(
+        my_urls)
+
+    async with aiohttp.ClientSession() as session:
+        the_response = HttpAsyncResponse()
+        x = await requester.request_one_url(session, "GET", urls[2], request_kwargs[0], attempt_countdown=10,
+                                            last_response=the_response)
+        print(x)
 
 
 if __name__ == '__main__':
-    requester = HttpAsyncRequest(10)
-    a = requester.fix_params(["a", "b"])
-    for ak in a:
-        print(ak)
+    asyncio.run(main())
+#https://www.twilio.com/blog/asynchronous-http-requests-in-python-with-aiohttp
