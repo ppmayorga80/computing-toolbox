@@ -1,10 +1,12 @@
 """Handle file operations in Google Cloud Storage or GS"""
 import os
 import re
+from itertools import count
 from typing import Sequence
 
 import smart_open
 from google.cloud import storage
+from tqdm import tqdm
 
 
 class Gs:
@@ -40,24 +42,43 @@ class Gs:
             return False
 
     @classmethod
-    def list_files(cls, path: str, re_filter: str = r".*") -> Sequence[str]:
+    def list_files(cls,
+                   path: str,
+                   re_filter: str = r".*",
+                   tqdm_kwargs: dict or None = None) -> Sequence[str]:
         """Given a path and a regex filter, list all files/dirs that match the filter
 
         :param path: the initial path where we start the search
-        :param re_filter: a regular expression string in raw format, empty string means no filter (default: )
-        :return: an iterator that walk over the files within `path` matching the `re_filter`
+        :param re_filter: a regular expression string in raw format (default: r".*")
+        :param tqdm_kwargs: if defined, at least {}, will create a progressbar with those parameters (default: None)
+        :return: iterator that walk over the files within `path` matching the `re_filter`
         """
         # compute the bucket and object names
         bucket_name, object_name = cls.split(path)
         # define if we have a regex function
         re_filter_fn = re.compile(re_filter)
 
-        # 1. walk over all objects within the path in the form (bucket_name,object_name)
         client = storage.Client()
+
+        tqdm_kwargs = {
+            **{
+                "desc": "Listing"
+            }
+        } if tqdm_kwargs is not None else tqdm_kwargs
+        blob_pbar_it = tqdm(count(), **
+                            tqdm_kwargs) if tqdm_kwargs is not None else None
+
+        # 1. walk over all objects within the path in the form (bucket_name,object_name)
+        success = 0
         for blob in client.list_blobs(bucket_name, prefix=object_name):
+            _ = blob_pbar_it.update() if blob_pbar_it else None
+
             # 1.1 build the filename
             filename = cls.join(bucket_name, blob.name)
             # 1.2 decide if we have a regex function
             # 1.2.1 if so, yield only the filename that pass the regex filter
             if re_filter_fn.findall(filename):
+                success += 1
+                _ = blob_pbar_it.set_postfix_str(
+                    f"🟢x{success}") if blob_pbar_it else None
                 yield filename
