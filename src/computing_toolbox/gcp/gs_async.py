@@ -9,7 +9,10 @@ from computing_toolbox.gcp.gs import Gs
 
 
 class GsAsync:
-    """GS async class"""
+    """GS async class
+    if you want to read/write gzip files you only need to provide *.gz extension in the path     
+    """
+
     # default timeout for read and write operations
     DEFAULT_TIMEOUT: int = 3600
 
