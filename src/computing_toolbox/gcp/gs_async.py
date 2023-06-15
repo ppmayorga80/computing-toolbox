@@ -10,7 +10,17 @@ from computing_toolbox.gcp.gs import Gs
 
 class GsAsync:
     """GS async class
-    if you want to read/write gzip files you only need to provide *.gz extension in the path     
+    if you want to read/write gzip files you only need to provide *.gz extension in the path
+
+    example 1:
+        response = GsAsync.write(["gs://b1/f1.txt.gz"],["hello, world"])
+    in the previous example the text "hello, world" will be compressed before save to the file='gs://b1/f2.txt.gz'
+
+    example 2:
+        response = GsAsync.read(["gs://b1/f1.txt.gz"])
+    in the previous example, response[0] contains the string content (uncompressed) in the file='gs://b1/f1.txt'
+    i.e. response[0]=="hello, world"
+
     """
 
     # default timeout for read and write operations
