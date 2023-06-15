@@ -1,5 +1,6 @@
 """Google Storage class with async operations"""
 import asyncio
+import gzip
 
 from gcloud.aio.storage import Storage
 from tqdm import tqdm
@@ -116,7 +117,12 @@ class GsAsync:
             async with Storage() as client:
                 content_in_bytes: bytes = await client.download(
                     bucket, key, timeout=timeout)
-                # 2.1 if success, convert to string
+                # 2.1 parse zip content if needed
+                content_in_bytes = gzip.decompress(
+                    content_in_bytes) if path.endswith(
+                        ".gz") else content_in_bytes
+
+                # 2.2 if success, convert to string.
                 content = content_in_bytes.decode("utf8")
         except Exception:
             # 2.2 if fails, set content to None
@@ -199,6 +205,8 @@ class GsAsync:
 
         # 2. try to write the content
         try:
+            content = gzip.compress(
+                content.encode("utf8")) if path.endswith(".gz") else content
             async with Storage() as client:
                 response = await client.upload(bucket,
                                                key,
