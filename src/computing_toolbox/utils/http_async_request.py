@@ -280,6 +280,7 @@ class HttpAsyncRequest:
     def _fix_params(self,
                     urls: list[str],
                     params: list[dict] or dict or None = None,
+                    jsons: list[dict] or dict or None = None,
                     headers: list[dict] or dict or None = None,
                     timeout: float or list[float] = 5,
                     allow_redirects: bool or list[bool] = True,
@@ -291,6 +292,7 @@ class HttpAsyncRequest:
 
         # fix null values -> list
         params = self._expand_to_list(params, n_urls)
+        jsons = self._expand_to_list(jsons, n_urls)
         headers = self._expand_to_list(headers, n_urls)
         timeout = self._expand_to_list(timeout, n_urls)
         allow_redirects = self._expand_to_list(allow_redirects, n_urls)
@@ -308,14 +310,17 @@ class HttpAsyncRequest:
         request_kwargs = [{
             **{
                 "params": p,
+                "json": j,
                 "headers": h,
                 "timeout": t,
                 "allow_redirects": a,
                 "proxy": x,
             },
             **r
-        } for r, p, h, t, a, x in zip(request_kwargs, params, headers, timeout,
-                                      allow_redirects, proxies)]
+        }
+                          for r, p, j, h, t, a, x in zip(
+                              request_kwargs, params, jsons, headers, timeout,
+                              allow_redirects, proxies)]
         # filter not defined params
         request_kwargs = [{
             k: v
@@ -458,6 +463,7 @@ class HttpAsyncRequest:
                 method: str,
                 urls: list[str],
                 params: list[dict] or dict or None = None,
+                jsons: list[dict] or dict or None = None,
                 headers: list[dict] or dict or None = None,
                 timeout: float or list[float] = 5,
                 allow_redirects: bool or list[bool] = True,
@@ -474,7 +480,8 @@ class HttpAsyncRequest:
 
         :param method: the http method GET,POST,...
         :param urls: the list of urls
-        :param params: additional parameters to be used in the request (default: None)
+        :param params: additional parameters to be used in the GET request (default: None)
+        :param jsons: additional parameters to be used in the POST request (default: None)
         :param headers: the headers to be used in the request (default: None)
         :param timeout: timeout for individual request (default: 5)
         :param allow_redirects: flag to allow redirects (default: True)
@@ -496,7 +503,7 @@ class HttpAsyncRequest:
         # fix all input parameters as a list if needed, after this step
         # all information is stored in `request_kwargs`
         urls, request_kwargs, tqdm_kwargs = self._fix_params(
-            urls, params, headers, timeout, allow_redirects, proxies,
+            urls, params, jsons, headers, timeout, allow_redirects, proxies,
             request_kwargs, tqdm_kwargs)
 
         # call the request async method `request_many`
