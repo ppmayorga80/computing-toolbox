@@ -1,0 +1,5 @@
+resource_type,pubsub_subscription,pubsub_subscription,pubsub_subscription
+project_id,my-project,my-project,my-project
+subscription_id,one-sub,another-sub,my-topic-sub
+13/07/23 6:08,0,0,111
+13/07/23 6:09,1,2,222
