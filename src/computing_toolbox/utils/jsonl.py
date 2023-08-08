@@ -1,10 +1,28 @@
 """json line utilities"""
+import multiprocessing
 from itertools import count
 from typing import Any
 
 import jsons
 import smart_open
 from tqdm import tqdm
+
+from computing_toolbox.algorithms.split_range import split_range
+
+
+def _jsonl_read_one_part(args):
+    path_k, k, ak, nk = args
+    tqdm_kwargs = {
+        "desc": f"Read part {k}",
+        "total": nk,
+        "position": k,
+        "leave": False
+    }
+    data_k = Jsonl.read(path=path_k,
+                        offset=ak,
+                        limit=nk,
+                        tqdm_kwargs=tqdm_kwargs)
+    return data_k
 
 
 class Jsonl:
@@ -29,7 +47,7 @@ class Jsonl:
         with smart_open.open(path) as fp:
             # 2.1 define the file iterator
             fp_iterator = tqdm(fp, **
-                               tqdm_kwargs) if tqdm_kwargs is not None else fp
+            tqdm_kwargs) if tqdm_kwargs is not None else fp
             # 2.2 count the number of lines
             n_lines = len([1 for _ in fp_iterator])
         return n_lines
@@ -146,3 +164,42 @@ class Jsonl:
 
         # return the number of objects
         return n_data
+
+    @classmethod
+    def parallel_read(cls,
+                      path: str,
+                      mapping_class: Any = None,
+                      offset: int = 0,
+                      limit: int or None = None,
+                      workers: int or None = None,
+                      tqdm_kwargs: dict or None = None) -> list[dict]:
+        """read a jsonl in parallel
+        works better for large files
+        if workers is not defined will use the number of cpus in your
+        computer
+        """
+        workers = workers if workers is not None else multiprocessing.cpu_count()
+        n = Jsonl.count_lines(path, tqdm_kwargs={})
+
+        intervals = split_range(n=n, parts=workers)
+        parameters = [
+            (path, k, ak, bk - ak)
+            for k, (ak, bk) in enumerate(intervals)
+        ]
+
+        with multiprocessing.Pool(workers) as pool:
+            data_in_chunks = pool.map(_jsonl_read_one_part, parameters)
+        print("Parallel read done")
+        print("Flatting data...")
+        flat_data = [
+            xk
+            for x in data_in_chunks
+            for xk in x
+        ]
+        return flat_data
+
+
+if __name__ == "__main__":
+    path = "/Users/pedro/Downloads/divihomes_20230631.jsonl"
+    data = Jsonl.parallel_read(path=path)
+    print("Done", "Lines:", len(data))

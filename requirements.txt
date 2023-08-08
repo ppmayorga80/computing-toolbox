@@ -1,15 +1,15 @@
-aiohttp==3.8.4
-aioresponses==0.7.4
-elasticsearch==7.13.4 #dont change this version
-fake-headers==1.0.2
-gcloud-aio-storage==8.2.0
-google-cloud-monitoring==2.15.1
-google-cloud-pubsub==2.18.0
-google-cloud-secret-manager==2.16.2
-google-cloud-storage==2.10.0
-jsons==1.6.3
-pandas==2.0.3
-python-dateutil==2.8.2
-python-dotenv==1.0.0
-smart-open==6.3.0
-tqdm==4.65.0
+aiohttp~=3.8.4
+aioresponses~=0.7.4
+elasticsearch~=7.13.4 #dont change this version
+fake-headers~=1.0.2
+gcloud-aio-storage~=8.2.0
+google-cloud-monitoring~=2.15.1
+google-cloud-pubsub~=2.18.0
+google-cloud-secret-manager~=2.16.2
+google-cloud-storage~=2.10.0
+jsons~=1.6.3
+pandas~=2.0.3
+python-dateutil~=2.8.2
+python-dotenv~=1.0.0
+smart-open~=6.3.0
+tqdm~=4.65.0
