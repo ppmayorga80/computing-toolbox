@@ -2,7 +2,7 @@
 
 if [ ! -d venv ]; then
   echo "Creating venv"
-  python3 -m venv venv
+  python3.10 -m venv venv
 fi
 
 source venv/bin/activate
