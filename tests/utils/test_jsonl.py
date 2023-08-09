@@ -1,9 +1,11 @@
 """test jsonl file"""
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from datetime import date, timedelta
 
-from computing_toolbox.utils.jsonl import Jsonl
+import jsons
+
+from computing_toolbox.utils.jsonl import Jsonl, _jsonl_parse_one_line
 
 
 def test_write_read_and_count_lines(tmp_path):
@@ -95,3 +97,21 @@ def test_offset_limit_with_class(tmp_path):
     data_x, data_y = data
     assert data_x.k == expected_n - 1
     assert data_y.k == expected_n
+
+
+def test__jsonl_parse_one_line():
+    expected_data = MyCounter(k=66, name="foo", date=date.today())
+    expected_data_as_str = jsons.dumps(asdict(expected_data))
+    data = _jsonl_parse_one_line((expected_data_as_str, MyCounter))
+    assert isinstance(data, MyCounter)
+    assert data == expected_data
+
+
+def test_parallel_read():
+    path = os.path.join(os.path.dirname(__file__),
+                        "prime-numbers-up-to-20.jsonl")
+    numbers1 = Jsonl.parallel_read(path=path)
+    numbers2 = Jsonl.parallel_read(path=path, tqdm_kwargs={})
+    assert numbers1 == numbers2
+    assert isinstance(numbers1, list)
+    assert len(numbers1) == 8

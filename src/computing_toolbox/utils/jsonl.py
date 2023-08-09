@@ -7,22 +7,12 @@ import jsons
 import smart_open
 from tqdm import tqdm
 
-from computing_toolbox.algorithms.split_range import split_range
 
-
-def _jsonl_read_one_part(args):
-    path_k, k, ak, nk = args
-    tqdm_kwargs = {
-        "desc": f"Read part {k}",
-        "total": nk,
-        "position": k,
-        "leave": False
-    }
-    data_k = Jsonl.read(path=path_k,
-                        offset=ak,
-                        limit=nk,
-                        tqdm_kwargs=tqdm_kwargs)
-    return data_k
+def _jsonl_parse_one_line(args):
+    """parse one line at a time"""
+    line, mapping_class = args
+    document = jsons.loads(line, cls=mapping_class)
+    return document
 
 
 class Jsonl:
@@ -47,7 +37,7 @@ class Jsonl:
         with smart_open.open(path) as fp:
             # 2.1 define the file iterator
             fp_iterator = tqdm(fp, **
-            tqdm_kwargs) if tqdm_kwargs is not None else fp
+                               tqdm_kwargs) if tqdm_kwargs is not None else fp
             # 2.2 count the number of lines
             n_lines = len([1 for _ in fp_iterator])
         return n_lines
@@ -173,33 +163,54 @@ class Jsonl:
                       limit: int or None = None,
                       workers: int or None = None,
                       tqdm_kwargs: dict or None = None) -> list[dict]:
-        """read a jsonl in parallel
-        works better for large files
-        if workers is not defined will use the number of cpus in your
-        computer
         """
-        workers = workers if workers is not None else multiprocessing.cpu_count()
-        n = Jsonl.count_lines(path, tqdm_kwargs={})
+        read a jsonl in parallel
+        to optimize this process we divide it in two main steps:
+        1. read the file line by line as a text (to not overload read process)
+        2. parse content in parallel (parsing is the most expensive task)
+        if workers is not defined will use the number of cpus in your computer
+        :param path: the file to be read
+        :param mapping_class: the output class (if defined)
+        :param offset: read the file starting at this line (if defined)
+        :param limit: read up to this number of lines
+        :param workers: the number of parallel jobs
+        :param tqdm_kwargs: if defined, this dictionary will be passed to tqdm when read the file
+        :return: the list of documents parsed as dictionary or the mapping class
+        """
+        # define the number of workers to be used
+        workers = workers if workers is not None else multiprocessing.cpu_count(
+        )
 
-        intervals = split_range(n=n, parts=workers)
-        parameters = [
-            (path, k, ak, bk - ak)
-            for k, (ak, bk) in enumerate(intervals)
-        ]
+        # 1. read the file in plain text
+        with smart_open.open(path) as fp:
+            # a. skip first `offset` lines
+            _ = [_ for _, _ in zip(range(offset), fp)]
+            # b. read up to `limit` lines
+            limit_it = count() if limit is None else range(limit)
+            lines = [line for _, line in zip(limit_it, fp)]
 
+        n = len(lines)
+
+        # 2. parse each line in parallel
+        # a. create the list of parameters
+        parameters = [(line, mapping_class) for line in lines]
         with multiprocessing.Pool(workers) as pool:
-            data_in_chunks = pool.map(_jsonl_read_one_part, parameters)
-        print("Parallel read done")
-        print("Flatting data...")
-        flat_data = [
-            xk
-            for x in data_in_chunks
-            for xk in x
-        ]
-        return flat_data
+            # b. create a default tqdm kwargs
+            tqdm_kwargs = {
+                **{
+                    "total": n,
+                    "desc": f"parsing at {workers}x"
+                },
+                **tqdm_kwargs
+            } if tqdm_kwargs is not None else None
+            # c. if pass tqdm kwargs use the imap function in conjunction with tqdm
+            #    or use the traditional map function without tqdm
+            if tqdm_kwargs is not None:
+                list_of_documents = list(
+                    tqdm(pool.imap(_jsonl_parse_one_line, parameters),
+                         **tqdm_kwargs))
+            else:
+                list_of_documents = pool.map(_jsonl_parse_one_line, parameters)
 
-
-if __name__ == "__main__":
-    path = "/Users/pedro/Downloads/divihomes_20230631.jsonl"
-    data = Jsonl.parallel_read(path=path)
-    print("Done", "Lines:", len(data))
+        # 3. return the list of documents
+        return list_of_documents
