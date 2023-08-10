@@ -40,7 +40,7 @@ class Jsonl:
         with smart_open.open(path) as fp:
             # 2.1 define the file iterator
             fp_iterator = tqdm(fp, **
-            tqdm_kwargs) if tqdm_kwargs is not None else fp
+                               tqdm_kwargs) if tqdm_kwargs is not None else fp
             # 2.2 count the number of lines
             n_lines = len([1 for _ in fp_iterator])
         return n_lines

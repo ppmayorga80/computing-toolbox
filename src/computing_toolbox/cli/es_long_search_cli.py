@@ -3,7 +3,7 @@
 to connect to ElasticSearch, you must provide in order or precedence:
     environment variable ES_API_KEY or
     provide the optional argument --es-api-key
-    if not provided, connect to a local ES client
+    if not provided am --es-host, connect to a local ES client
 
 Usage:
     es_long_search [--verbose] [--es-host=HOST] [--es-api-key=APIKEY] <INDEX> <OUTPUT>
@@ -15,7 +15,7 @@ Arguments:
 
 Options:
     --verbose               show verbose messages
-    --es-api-key=APIKEY     the ElasticSearch ApiKey
+    --es-api-key=APIKEY     the ElasticSearch ApiKey [default: ]
     --es-host=HOST          the ElasticSearch Host [default: localhost]
 
 """
@@ -30,19 +30,16 @@ from elasticsearch import Elasticsearch
 from computing_toolbox.utils.es_long_search import es_long_search
 from computing_toolbox.utils.jsonl import Jsonl
 
-if __name__ == '__main__':
-    load_dotenv()
 
-    # 1. read arguments
-    args = docopt(__doc__)
+def main_fn(es_host: str, es_api_key: str, index_name: str, output: str):
+    """"main entry function
+    to query all documents to an elasticsearch index and save them to an output file
 
-    es_host: str = args['--es-host']
-    es_api_key_arg: str = args['--es-api-key']
-    index: str = args['<INDEX>']
-    output: str = args['<OUTPUT>']
-    # compute the api key with a env variable or with the argument provided
-    es_api_key_sys = os.environ['ES_API_KEY'] if 'ES_API_KEY' in os.environ else ''
-    es_api_key = es_api_key_arg if es_api_key_arg else es_api_key_sys
+    :param es_host: elasticsearch host
+    :param es_api_key: elasticsearch api_key
+    :param es_index_name: elasticsearch index name
+    :param output: where to save the results
+    """
 
     # 2. create the es client
     es_kwargs = {"api_key": es_api_key} if es_api_key else {}
@@ -50,7 +47,7 @@ if __name__ == '__main__':
 
     # 3. read the documents
     print("connecting with elasticsearch...")
-    docs: list = es_long_search(es=es, index=index, tqdm_kwargs={})
+    docs: list = es_long_search(es=es, index=index_name, tqdm_kwargs={})
 
     # 4. save the result if needed
     print(f"saving the output file '{output}'")
@@ -60,3 +57,29 @@ if __name__ == '__main__':
         with smart_open.open(output, "w") as fp:
             content = json.dumps(docs)
             fp.write(content)
+
+
+def wrapper_main_fn():
+    """wrapper main function"""
+    load_dotenv()
+    # 1. read arguments
+    args = docopt(__doc__)
+    # 2. parse arguments to variables
+    es_host: str = args['--es-host']
+    es_api_key_arg: str = args['--es-api-key']
+    index: str = args['<INDEX>']
+    output: str = args['<OUTPUT>']
+    # compute the api key with a env variable or with the argument provided
+    es_api_key_env = os.environ[
+        'ES_API_KEY'] if 'ES_API_KEY' in os.environ else ''
+    es_api_key = es_api_key_arg if es_api_key_arg else es_api_key_env
+
+    # 3. call the main function
+    main_fn(es_host=es_host,
+            es_api_key=es_api_key,
+            index_name=index,
+            output=output)
+
+
+if __name__ == '__main__':  # pragma: no cover
+    wrapper_main_fn()
