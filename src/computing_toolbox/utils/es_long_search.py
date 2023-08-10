@@ -39,7 +39,7 @@ def es_long_search(es: Elasticsearch,
     response = es.search(index=index, body=input_body, size=size, scroll="1m")
     # 3. get the total number of documents and the number of chunks we have
     total = response["hits"]["total"]["value"] if response["hits"]["total"][
-        "relation"] == "eq" else None
+                                                      "relation"] == "eq" else None
     total_chunks = (total // size) + (total % size != 0) - 1
 
     # compute the tqdm parameters and define the chunk iterator

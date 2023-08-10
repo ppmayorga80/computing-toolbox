@@ -22,3 +22,7 @@ classifiers = [
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
+
+[project.scripts]
+jsonl = "computing_toolbox.utils.jsonl:main"
+es_long_search = "computing_toolbox.utils.es_long_search:main"
