@@ -24,5 +24,4 @@ classifiers = [
 dependencies = {file = ["requirements.txt"]}
 
 [project.scripts]
-jsonl = "computing_toolbox.utils.jsonl:main"
-es_long_search = "computing_toolbox.utils.es_long_search:main"
+es_long_search = "computing_toolbox.cli.es_long_search_cli:wrapper_main_fn"
