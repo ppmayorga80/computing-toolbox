@@ -39,5 +39,8 @@ you only need to configure your environment
 `Jsonl` can handle `.zip` or `.gz` files automatically
 you only need to specify the right extension in the path
 
-#Author
+# Install CLI tools
+``pip install .``
+
+# Author
 Pedro Mayorga.
