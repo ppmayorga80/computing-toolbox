@@ -172,11 +172,13 @@ class GsAsync:
     @classmethod
     def read(cls,
              paths: list[str],
+             batch_size: int = 10,
              timeout: int or None = None,
              tqdm_kwargs: dict or None = None) -> list[str]:
         """wrapper function that calls the async version of read_many
 
         :param paths: the list of paths
+        :param batch_size: the number of batch operations to split the async read operation
         :param timeout: timeout before raise an exception, if None set as DEFAULT_TIMEOUT (default: None)
         :param tqdm_kwargs: if not None define a progressbar, set {} for a default progressbar (default: None)
         :return: the list of contents
@@ -184,20 +186,35 @@ class GsAsync:
         # 1. define the timeout
         timeout = timeout if timeout else cls.DEFAULT_TIMEOUT
 
-        # 2. define the progressbar kwargs
-        tqdm_kwargs = {
-            **{
-                "desc": "GsAsync.read",
-                "total": len(paths)
-            },
-            **tqdm_kwargs
-        } if tqdm_kwargs is not None else tqdm_kwargs
-        # 2.1 define the progressbar
-        tqdm_pbar = tqdm(range(len(paths)), **
-                         tqdm_kwargs) if tqdm_kwargs is not None else None
+        results = []
+        for k in tqdm(range(0, len(paths), batch_size),
+                      desc=f"async read batch_size={batch_size}",
+                      position=0,
+                      leave=True):
+            # 2.1 define the subset
+            path_subset = paths[k:k + batch_size]
+            subset_len = len(path_subset)
+            # 2.2 define the progressbar kwargs
+            tqdm_kwargs_subset = {
+                **{
+                    "desc": "GsAsync.read",
+                    "total": subset_len,
+                    "position": 1,
+                    "leave": False
+                },
+                **tqdm_kwargs
+            } if tqdm_kwargs is not None else tqdm_kwargs
+            n_it = range(subset_len)
+            tqdm_pbar = None if tqdm_kwargs_subset is None else tqdm(
+                n_it, **tqdm_kwargs_subset)
 
-        # 3. call the async function and return the results
-        return asyncio.run(cls._read_many(paths, timeout, tqdm_pbar))
+            # 2.3 call the async method and update the results
+            result_subset = asyncio.run(
+                cls._read_many(path_subset, timeout, tqdm_pbar))
+            results += result_subset
+
+        # 3. return the results
+        return results
 
     @classmethod
     async def _write_one(cls,
@@ -265,12 +282,14 @@ class GsAsync:
     def write(cls,
               paths: list[str],
               contents: list[str],
+              batch_size: int = 10,
               timeout: int or None = None,
               tqdm_kwargs: dict or None = None) -> list[int]:
         """wrapper to the async version of write_many
 
         :param paths: the list of paths
         :param contents: corresponding content list to be wrriten
+        :param batch_size: process write operations in batches of this size,
         :param timeout: timeout before to raise an exception
         :param tqdm_kwargs: if defined, at least {}, creates a progressbar
                 able to track the writing operation (default: None)
@@ -279,18 +298,35 @@ class GsAsync:
         # 1. define the timeout
         timeout = timeout if timeout else cls.DEFAULT_TIMEOUT
 
-        # 2. define the progressbar kwargs
-        tqdm_kwargs = {
-            **{
-                "desc": "GsAsync.write",
-                "total": len(paths)
-            },
-            **tqdm_kwargs
-        } if tqdm_kwargs is not None else tqdm_kwargs
-        # 2.1 define the progressbar
-        n_it = range(len(paths))
-        tqdm_pbar = None if tqdm_kwargs is None else tqdm(n_it, **tqdm_kwargs)
+        # 2. walk over the paths in chunks
+        results = []
+        for k in tqdm(range(0, len(paths), batch_size),
+                      desc=f"async write batch_size={batch_size}",
+                      position=0,
+                      leave=True):
+            # 2.1 define the subset
+            path_subset = paths[k:k + batch_size]
+            content_subset = contents[k:k + batch_size]
+            subset_len = len(path_subset)
+            # 2.2 define the progressbar kwargs
+            tqdm_kwargs_subset = {
+                **{
+                    "desc": "GsAsync.write",
+                    "total": subset_len,
+                    "position": 1,
+                    "leave": False
+                },
+                **tqdm_kwargs
+            } if tqdm_kwargs is not None else tqdm_kwargs
+            n_it = range(subset_len)
+            tqdm_pbar = None if tqdm_kwargs_subset is None else tqdm(
+                n_it, **tqdm_kwargs_subset)
 
-        # 3. call the async function and return the results
-        return asyncio.run(cls._write_many(paths, contents, timeout,
-                                           tqdm_pbar))
+            # 2.3 call the async method and update the results
+            result_subset = asyncio.run(
+                cls._write_many(path_subset, content_subset, timeout,
+                                tqdm_pbar))
+            results += result_subset
+
+        # 3. return the results
+        return results
