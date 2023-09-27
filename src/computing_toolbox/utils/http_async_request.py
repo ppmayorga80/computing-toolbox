@@ -318,9 +318,9 @@ class HttpAsyncRequest:
             },
             **r
         }
-                          for r, p, j, h, t, a, x in zip(
-                              request_kwargs, params, jsons, headers, timeout,
-                              allow_redirects, proxies)]
+            for r, p, j, h, t, a, x in zip(
+                request_kwargs, params, jsons, headers, timeout,
+                allow_redirects, proxies)]
         # filter not defined params
         request_kwargs = [{
             k: v
@@ -332,11 +332,11 @@ class HttpAsyncRequest:
         tqdm_kwargs = {
             **{
                 "desc":
-                f"HttpAsyncRequest.{self.method}x{n_urls}",
+                    f"HttpAsyncRequest.{self.method}x{n_urls}",
                 "total":
-                len(urls),
+                    len(urls),
                 "bar_format":
-                "{l_bar}{bar}| {n:0.1f}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]"
+                    "{l_bar}{bar}| {n:0.1f}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}{postfix}]"
             },
             **tqdm_kwargs
         } if tqdm_kwargs is not None else tqdm_kwargs
@@ -438,7 +438,7 @@ class HttpAsyncRequest:
             # A.2create the progress bar if needed
             range_it = range(len(urls))
             self.progress_bar = tqdm(range_it, **
-                                     tqdm_kwargs) if tqdm_kwargs else None
+            tqdm_kwargs) if tqdm_kwargs else None
 
             # A.3 construct the list of tasks to be requested
             tasks = [
@@ -462,6 +462,7 @@ class HttpAsyncRequest:
     def request(self,
                 method: str,
                 urls: list[str],
+                batch_size: int = 50,
                 params: list[dict] or dict or None = None,
                 jsons: list[dict] or dict or None = None,
                 headers: list[dict] or dict or None = None,
@@ -480,6 +481,7 @@ class HttpAsyncRequest:
 
         :param method: the http method GET,POST,...
         :param urls: the list of urls
+        :param batch_size: we can process a large number of urls in batches to make it optimum
         :param params: additional parameters to be used in the GET request (default: None)
         :param jsons: additional parameters to be used in the POST request (default: None)
         :param headers: the headers to be used in the request (default: None)
@@ -500,15 +502,31 @@ class HttpAsyncRequest:
         self.method = method
         self.urls = urls
 
-        # fix all input parameters as a list if needed, after this step
-        # all information is stored in `request_kwargs`
-        urls, request_kwargs, tqdm_kwargs = self._fix_params(
-            urls, params, jsons, headers, timeout, allow_redirects, proxies,
-            request_kwargs, tqdm_kwargs)
+        tqdm_kwargs = {
+            **tqdm_kwargs,
+            **{
+                "position": 1,
+                "leave": False
+            }
+        } if tqdm_kwargs is not None else None
+        results = []
+        for k in tqdm(range(0, len(urls), batch_size),
+                      desc=f"request in batches of size {batch_size}",
+                      position=0,
+                      leave=True):
+            subset_urls = urls[k:k + batch_size]
 
-        # call the request async method `request_many`
-        results = asyncio.run(
-            self._request_many(method, urls, request_kwargs, tqdm_kwargs))
+            # fix all input parameters as a list if needed, after this step
+            # all information is stored in `request_kwargs`
+            subset_urls, request_kwargs, tqdm_kwargs = self._fix_params(
+                subset_urls, params, jsons, headers, timeout, allow_redirects,
+                proxies, request_kwargs, tqdm_kwargs)
+
+            # call the request async method `request_many`
+            subset_results = asyncio.run(
+                self._request_many(method, subset_urls, request_kwargs,
+                                   tqdm_kwargs))
+            results += subset_results
 
         # compute the execution time by difference
         self.execution_time = toc(key=key, verbose=False)
