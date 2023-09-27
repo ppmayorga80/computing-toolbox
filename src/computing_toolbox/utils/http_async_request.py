@@ -511,7 +511,7 @@ class HttpAsyncRequest:
         } if tqdm_kwargs is not None else None
         results = []
         for k in tqdm(range(0, len(urls), batch_size),
-                      desc=f"request in batches of size {batch_size}",
+                      desc=f"async-request, batch_size:{batch_size}",
                       position=0,
                       leave=True):
             subset_urls = urls[k:k + batch_size]
