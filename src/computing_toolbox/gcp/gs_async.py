@@ -49,7 +49,7 @@ class GsAsync:
                                                    timeout=timeout)
                 # 2.1 if success mark as True
                 flag = True
-        except Exception as _:
+        except Exception:
             # 2.2 if fails mark as False
             flag = False
 
@@ -83,11 +83,13 @@ class GsAsync:
     @classmethod
     def exists(cls,
                paths: list[str],
+               batch_size: int = 50,
                timeout: int or None = None,
                tqdm_kwargs: dict or None = None) -> list[bool]:
         """wrapper that calls async function that test for path existences
 
         :param paths: the list of paths
+        :param batch_size: process the async operation in batches of this size
         :param timeout: timeout, set as DEFAULT_TIMEOUT if None (default: None)
         :param tqdm_kwargs: if not None, define a tqdm progress bar (default: None)
         :return: the list of flags
@@ -95,20 +97,42 @@ class GsAsync:
         # 1. define the timeout
         timeout = timeout if timeout else cls.DEFAULT_TIMEOUT
 
-        # 2. define progress bar kwargs
-        tqdm_kwargs = {
+        batch_tqdm_kwargs = {
             **{
-                "desc": "GsAsync.exists",
-                "total": len(paths)
+                "desc": f"GsAsync.exists {len(paths)} paths in batches",
+                "position": 0,
+                "leave": True
             },
             **tqdm_kwargs
         } if tqdm_kwargs is not None else tqdm_kwargs
-        # 2.1 define the progressbar
-        tqdm_pbar = tqdm(range(len(paths)), **
-                         tqdm_kwargs) if tqdm_kwargs is not None else None
+        batch_range = range(0, len(paths), batch_size)
+        batch_counter = tqdm(
+            batch_range, **
+            batch_tqdm_kwargs) if tqdm_kwargs is not None else batch_range
 
-        # 3. return the async execution
-        return asyncio.run(cls._exist_many(paths, timeout, tqdm_pbar))
+        responses = []
+        for k in batch_counter:
+            batch_paths = paths[k:k + batch_size]
+            # 2. define progress bar kwargs
+            async_tqdm_kwargs = {
+                **{
+                    "desc": "GsAsync.exists",
+                    "total": len(batch_paths),
+                    "position": 1,
+                    "leave": False
+                }
+            } if tqdm_kwargs is not None else tqdm_kwargs
+            # 2.1 define the progressbar
+            tqdm_pbar = tqdm(
+                range(len(batch_paths)), **
+                async_tqdm_kwargs) if async_tqdm_kwargs is not None else None
+            partial_response = asyncio.run(
+                cls._exist_many(batch_paths, timeout, tqdm_pbar))
+
+            # 3. save the async execution
+            responses += partial_response
+
+        return responses
 
     @classmethod
     async def _read_one(cls,
