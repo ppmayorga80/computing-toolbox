@@ -22,7 +22,7 @@ def test_generate_fake_headers():
 
     # 3. with authority and default_headers
     header = generate_fake_headers(authority="www.google.com",
-                                   default_headers={"name": "foo"})
+                                   base_headers={"name": "foo"})
     assert isinstance(header, dict)
     assert "authority" in header
     assert ("name" in header) and (header["name"] == "foo")
