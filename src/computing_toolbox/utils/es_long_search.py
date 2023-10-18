@@ -23,6 +23,13 @@ def es_long_search(es: Elasticsearch,
     """Perform elastic-search (ES) search in chunks in order to get more than 10K documents
     which is the maximum value for ES search method.
 
+    We encourage you to use the `body` parameter in order to select what fields you want to retrieve in order to make
+    this process more lightweight in all aspects. For example:
+        body={
+            "_source":["name","city","zipcode"]
+        }
+    will get only 3 fields instead of the full document keys.        
+
     :param es: open search client
     :param index: the index name
     :param body: search dictionary in json format
