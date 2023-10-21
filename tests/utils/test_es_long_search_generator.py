@@ -10,10 +10,6 @@ def my_side_effect():
     raise ValueError("My Side Effect for ES")
 
 
-EsLongSearchGenerator.LAST_SCROLL_ID_PATH = os.path.join(
-    os.path.dirname(__file__), "EsLongSearchGenerator.json")
-
-
 class TestEsLongSearchGenerator:
     """Test class for es_long_search method
     hits: contains 5 documents
@@ -207,6 +203,6 @@ class TestEsLongSearchGenerator:
             assert partial_data == self.responses[last_i + j +
                                                   1]['hits']['hits']
 
-        os.unlink(EsLongSearchGenerator.LAST_SCROLL_ID_PATH)
+        os.unlink(generator.last_scroll_id_path)
         empty_data = list(generator.resume())
         assert not empty_data

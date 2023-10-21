@@ -17,8 +17,6 @@ from tqdm import tqdm
 class EsLongSearchGenerator:
     """ es_long_search_to_part_files computes/download the full index in batches of size `batch_size`
     and yield partial results after k processed batches and only compute a limited number of batches."""
-    LAST_SCROLL_ID_PATH = os.path.join(
-        os.environ["HOME"], ".EsLongSearchGenerator.last_scroll_id.json")
 
     def __init__(self,
                  es: Elasticsearch,
@@ -69,9 +67,13 @@ class EsLongSearchGenerator:
         self.last_k = 0
         self.last_scroll_id = ""
 
+        self.last_scroll_id_path = os.path.join(
+            os.environ["HOME"],
+            f".EsLongSearchGenerator.last_scroll_id.{self.index}.json")
+
     def _store_last_scroll_id_path(self):
         """store last scroll id to a json file in order to use in the future with the resume function"""
-        with smart_open.open(self.LAST_SCROLL_ID_PATH, "w") as fp:
+        with smart_open.open(self.last_scroll_id_path, "w") as fp:
             data = {
                 "total": self.total,
                 "total_chunks": self.total_chunks,
@@ -83,7 +85,7 @@ class EsLongSearchGenerator:
 
     def _load_last_scroll_id_path(self):
         """load the scroll id from a json file to use with the resume function"""
-        with smart_open.open(self.LAST_SCROLL_ID_PATH) as fp:
+        with smart_open.open(self.last_scroll_id_path) as fp:
             content = fp.read()
         data = json.loads(content)
         self.last_k = data["last_k"]
@@ -173,8 +175,8 @@ class EsLongSearchGenerator:
 
     def resume(self) -> Iterator[list]:
         """resume function"""
-        if not os.path.exists(self.LAST_SCROLL_ID_PATH):
-            msg = f"Can't resume, '{self.LAST_SCROLL_ID_PATH}' doesn't exists"
+        if not os.path.exists(self.last_scroll_id_path):
+            msg = f"Can't resume, '{self.last_scroll_id_path}' doesn't exists"
             logging.warning(msg)
             return
 
