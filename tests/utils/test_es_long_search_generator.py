@@ -1,7 +1,17 @@
 """Test for elastic search long search"""
+import os
 from unittest.mock import patch
 
-from computing_toolbox.utils.es_long_search_generator import es_long_search_generator
+from computing_toolbox.utils.es_long_search_generator import EsLongSearchGenerator
+
+
+def my_side_effect():
+    """raise an error on side effect"""
+    raise ValueError("My Side Effect for ES")
+
+
+EsLongSearchGenerator.LAST_SCROLL_ID_PATH = os.path.join(
+    os.path.dirname(__file__), "EsLongSearchGenerator.json")
 
 
 class TestEsLongSearchGenerator:
@@ -53,15 +63,15 @@ class TestEsLongSearchGenerator:
 
         # because we set 11 documents and the batch_size=4, the responses
         # will be split in 3 responses of sizes 4,4,3
-        data = list(
-            es_long_search_generator(es=es,
-                                     index="my-index",
-                                     body={},
-                                     batch_size=self.batch_size,
-                                     scroll="1m",
-                                     yield_after_k_batches=1,
-                                     batch_limit=None,
-                                     tqdm_kwargs={}))
+        generator = EsLongSearchGenerator(es=es,
+                                          index="my-index",
+                                          body={},
+                                          scroll="1m",
+                                          batch_size=self.batch_size,
+                                          batch_limit=None,
+                                          tqdm_kwargs={})
+        data = list(generator.generate())
+
         assert len(data) == self.total // self.batch_size + (
             self.total % self.batch_size != 0)
         assert sum(len(x) for x in data) == self.total
@@ -80,13 +90,123 @@ class TestEsLongSearchGenerator:
 
         # NOTE: not store all documents, you will probably get out of memory
         # this is only for testing purposes
-        for i, partial_data in enumerate(
-                es_long_search_generator(es=es,
-                                         index="my-index",
-                                         body={},
-                                         batch_size=self.batch_size,
-                                         scroll="1m",
-                                         yield_after_k_batches=1,
-                                         batch_limit=1,
-                                         tqdm_kwargs={})):
+        generator = EsLongSearchGenerator(es=es,
+                                          index="my-index",
+                                          body={},
+                                          scroll="1m",
+                                          batch_size=self.batch_size,
+                                          batch_limit=1,
+                                          tqdm_kwargs={})
+        for i, partial_data in enumerate(generator.generate()):
             assert partial_data == self.responses[i]['hits']['hits']
+
+    @patch('elasticsearch.Elasticsearch')
+    def test_es_long_search_generator_with_resume(self, mock_elastic_search):
+        """test es_long_search method by mocking elastic search methods"""
+        # initialize the internal variables
+        self.initialize()
+        # instantiate the elastic search client (mocked)
+        es = mock_elastic_search()
+        # mimic the responses for es.search and es.scroll methods
+        es.search.side_effect = self.responses[:1]
+        es.scroll.side_effect = self.responses[1:]
+
+        # NOTE: not store all documents, you will probably get out of memory
+        # this is only for testing purposes
+        generator = EsLongSearchGenerator(es=es,
+                                          index="my-index",
+                                          body={},
+                                          scroll="1h",
+                                          batch_size=self.batch_size,
+                                          batch_limit=1,
+                                          tqdm_kwargs={})
+        last_i = 0
+        for i, partial_data in enumerate(generator.generate()):
+            assert partial_data == self.responses[i]['hits']['hits']
+            last_i = i
+
+        for j, partial_data in enumerate(generator.resume(), start=last_i + 1):
+            assert partial_data == self.responses[j]['hits']['hits']
+
+    @patch('elasticsearch.Elasticsearch')
+    def test_es_long_search_generator_with_errors_example1(
+            self, mock_elastic_search):
+        """test es_long_search method by mocking elastic search methods"""
+        # initialize the internal variables
+        self.initialize()
+        # instantiate the elastic search client (mocked)
+        es = mock_elastic_search()
+        # mimic the responses for es.search and es.scroll methods
+        es.search.side_effect = my_side_effect
+        es.scroll.side_effect = self.responses[1:]
+
+        # NOTE: not store all documents, you will probably get out of memory
+        # this is only for testing purposes
+        generator = EsLongSearchGenerator(es=es,
+                                          index="my-index",
+                                          body={},
+                                          scroll="1h",
+                                          batch_size=self.batch_size,
+                                          batch_limit=1,
+                                          tqdm_kwargs={})
+        for i, partial_data in enumerate(generator.generate()):
+            assert partial_data == self.responses[i]['hits']['hits']
+
+    @patch('elasticsearch.Elasticsearch')
+    def test_es_long_search_generator_with_errors_example2(
+            self, mock_elastic_search):
+        """test es_long_search method by mocking elastic search methods"""
+        # initialize the internal variables
+        self.initialize()
+        # instantiate the elastic search client (mocked)
+        es = mock_elastic_search()
+        # mimic the responses for es.search and es.scroll methods
+        es.search.side_effect = self.responses[:1]
+        es.scroll.side_effect = my_side_effect
+
+        # NOTE: not store all documents, you will probably get out of memory
+        # this is only for testing purposes
+        generator = EsLongSearchGenerator(es=es,
+                                          index="my-index",
+                                          body={},
+                                          scroll="1h",
+                                          batch_size=self.batch_size,
+                                          batch_limit=2,
+                                          tqdm_kwargs={})
+        i = 0
+        for partial_data in generator.generate():
+            assert partial_data == self.responses[i]['hits']['hits']
+            i += 1
+
+    @patch('elasticsearch.Elasticsearch')
+    def test_es_long_search_generator_with_errors_example3(
+            self, mock_elastic_search):
+        """test es_long_search method by mocking elastic search methods"""
+        # initialize the internal variables
+        self.initialize()
+        # instantiate the elastic search client (mocked)
+        es = mock_elastic_search()
+        # mimic the responses for es.search and es.scroll methods
+        es.search.side_effect = self.responses[:2]
+        es.scroll.side_effect = my_side_effect
+
+        # NOTE: not store all documents, you will probably get out of memory
+        # this is only for testing purposes
+        generator = EsLongSearchGenerator(es=es,
+                                          index="my-index",
+                                          body={},
+                                          scroll="1h",
+                                          batch_size=self.batch_size,
+                                          batch_limit=2,
+                                          tqdm_kwargs={})
+        last_i = -1
+        for i, partial_data in enumerate(generator.generate()):
+            last_i = i
+            assert partial_data == self.responses[i]['hits']['hits']
+        for j, partial_data in enumerate(generator.resume()):
+            assert partial_data == self.responses[last_i + j +
+                                                  1]['hits']['hits']
+
+        os.unlink(EsLongSearchGenerator.LAST_SCROLL_ID_PATH)
+        empty_data = list(generator.resume())
+        assert not empty_data
