@@ -1,11 +1,12 @@
 """test jsonl file"""
+import json
 import os
 from dataclasses import dataclass, asdict
 from datetime import date, timedelta
 
 import jsons
 
-from computing_toolbox.utils.jsonl import Jsonl, _jsonl_parse_one_line
+from computing_toolbox.utils.jsonl import Jsonl, _jsonl_parse_one_line, _jsonl_dumps_one_object
 
 
 def test_write_read_and_count_lines(tmp_path):
@@ -108,6 +109,7 @@ def test__jsonl_parse_one_line():
 
 
 def test_parallel_read():
+    """test parallel read"""
     path = os.path.join(os.path.dirname(__file__),
                         "prime-numbers-up-to-20.jsonl")
     numbers1 = Jsonl.parallel_read(path=path)
@@ -115,3 +117,50 @@ def test_parallel_read():
     assert numbers1 == numbers2
     assert isinstance(numbers1, list)
     assert len(numbers1) == 8
+
+
+def test_dumps_one_object():
+    """test the function used in parallel write"""
+    data = {"name": "foo", "value": "bar", "n": 10}
+    line = _jsonl_dumps_one_object(data)
+    assert line == json.dumps(data)
+
+
+def test_parallel_write(tmp_path):
+    """test parallel write"""
+    path = str(tmp_path / "fibonacci-numbers-up-to-20.jsonl")
+    fibs = [{
+        "position": 1,
+        "value": 1
+    }, {
+        "position": 2,
+        "value": 1
+    }, {
+        "position": 3,
+        "value": 2
+    }, {
+        "position": 4,
+        "value": 3
+    }, {
+        "position": 5,
+        "value": 5
+    }, {
+        "position": 6,
+        "value": 8
+    }, {
+        "position": 7,
+        "value": 13
+    }]
+
+    assert not os.path.exists(path)
+    n_bytes = Jsonl.parallel_write(path=path, data=fibs, tqdm_kwargs={})
+    assert os.path.exists(path)
+    assert n_bytes > 0
+    data = Jsonl.read(path)
+    assert data == fibs
+
+    n_bytes = Jsonl.parallel_write(path=path, data=fibs)
+    assert os.path.exists(path)
+    assert n_bytes > 0
+    data = Jsonl.read(path)
+    assert data == fibs

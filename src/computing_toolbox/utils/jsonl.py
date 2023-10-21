@@ -2,6 +2,7 @@
 to handle read and write operations on local and cloud files
 in both format: plain or compressed (gzip)
 """
+import logging
 import multiprocessing
 from itertools import count
 from typing import Any
@@ -16,6 +17,13 @@ def _jsonl_parse_one_line(args):
     line, mapping_class = args
     document = jsons.loads(line, cls=mapping_class)
     return document
+
+
+def _jsonl_dumps_one_object(args):
+    """dumps one object at a time"""
+    x = args
+    line = jsons.dumps(x)
+    return line
 
 
 class Jsonl:
@@ -217,3 +225,41 @@ class Jsonl:
 
         # 3. return the list of documents
         return list_of_documents
+
+    @classmethod
+    def parallel_write(cls,
+                       path: str,
+                       data: list[dict or object],
+                       workers: int or None = None,
+                       tqdm_kwargs: dict or None = None) -> int:
+        """write in parallel"""
+        workers = workers if workers is not None else multiprocessing.cpu_count(
+        )
+        data = data if isinstance(data, list) else [data]
+        n = len(data)
+
+        with multiprocessing.Pool(workers) as pool:
+            # b. create a default tqdm kwargs
+            tqdm_kwargs = {
+                **{
+                    "total": n,
+                    "desc": f"dumps at {workers}x"
+                },
+                **tqdm_kwargs
+            } if tqdm_kwargs is not None else None
+            # c. if pass tqdm kwargs use the imap function in conjunction with tqdm
+            #    or use the traditional map function without tqdm
+            if tqdm_kwargs is not None:
+                lines = list(
+                    tqdm(pool.imap(_jsonl_dumps_one_object, data),
+                         **tqdm_kwargs))
+            else:
+                lines = pool.map(_jsonl_dumps_one_object, data)
+
+            msg = f"writting content to '{path}'"
+            logging.info(msg)
+            content = "\n".join(lines)
+            with smart_open.open(path, "w") as fp:
+                fp.write(content)
+
+            return len(content)
