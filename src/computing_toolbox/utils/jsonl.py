@@ -3,13 +3,16 @@ to handle read and write operations on local and cloud files
 in both format: plain or compressed (gzip)
 """
 import logging
-import multiprocessing
+from multiprocessing import cpu_count, Pool
 from itertools import count
 from typing import Any
 
+import json
 import jsons
 import smart_open
 from tqdm import tqdm
+
+from computing_toolbox.gcp.gs_async import GsAsync
 
 
 def _jsonl_parse_one_line(args):
@@ -24,6 +27,20 @@ def _jsonl_dumps_one_object(args):
     x = args
     line = jsons.dumps(x)
     return line
+
+
+def _split_str(args):
+    """split string"""
+    text, = args
+    lines = text.split('\n')
+    return lines
+
+
+def _parse_documents(args):
+    """split string"""
+    lines = args
+    documents = [json.loads(line) for line in lines]
+    return documents
 
 
 class Jsonl:
@@ -189,8 +206,7 @@ class Jsonl:
         :return: the list of documents parsed as dictionary or the mapping class
         """
         # define the number of workers to be used
-        workers = workers if workers is not None else multiprocessing.cpu_count(
-        )
+        workers = workers if workers is not None else cpu_count()
 
         # 1. read the file in plain text
         with smart_open.open(path) as fp:
@@ -205,7 +221,7 @@ class Jsonl:
         # 2. parse each line in parallel
         # a. create the list of parameters
         parameters = [(line, mapping_class) for line in lines]
-        with multiprocessing.Pool(workers) as pool:
+        with Pool(workers) as pool:
             # b. create a default tqdm kwargs
             tqdm_kwargs = {
                 **{
@@ -227,18 +243,65 @@ class Jsonl:
         return list_of_documents
 
     @classmethod
+    def async_read(cls,
+                   paths: list[str],
+                   workers: int or None = None,
+                   tqdm_kwargs: dict or None = None) -> list[dict]:
+        """read a list of paths asynchronously"""
+        # define the number of workers to be used
+        workers = workers if workers is not None else cpu_count()
+
+        # A.1. read all documents at once
+        raw_contents = GsAsync.read(paths=paths, tqdm_kwargs=tqdm_kwargs)
+
+        # A.2. define tqdm for split raw contents
+        tqdm_kwargs_tmp = {
+            **{
+                "total": len(raw_contents),
+                "desc": f"split contents at {workers}x"
+            },
+            **tqdm_kwargs
+        } if tqdm_kwargs is not None else None
+
+        with Pool(workers) as pool:
+            if tqdm_kwargs_tmp is not None:
+                list_of_lines = list(
+                    tqdm(pool.imap(_split_str, raw_contents),
+                         **tqdm_kwargs_tmp))
+            else:
+                list_of_lines = pool.map(_split_str, raw_contents)
+
+        # A.3 define tqm for parse the contents
+        tqdm_kwargs_tmp = {
+            **{
+                "total": len(list_of_lines),
+                "desc": f"parsing documents at {workers}x"
+            },
+            **tqdm_kwargs
+        } if tqdm_kwargs is not None else None
+
+        with Pool(workers) as pool:
+            if tqdm_kwargs_tmp is not None:
+                list_of_documents = list(
+                    tqdm(pool.imap(_parse_documents, list_of_lines),
+                         **tqdm_kwargs_tmp))
+            else:
+                list_of_documents = pool.map(_parse_documents, list_of_lines)
+
+        return list_of_documents
+
+    @classmethod
     def parallel_write(cls,
                        path: str,
                        data: list[dict or object],
                        workers: int or None = None,
                        tqdm_kwargs: dict or None = None) -> int:
         """write in parallel"""
-        workers = workers if workers is not None else multiprocessing.cpu_count(
-        )
+        workers = workers if workers is not None else cpu_count()
         data = data if isinstance(data, list) else [data]
         n = len(data)
 
-        with multiprocessing.Pool(workers) as pool:
+        with Pool(workers) as pool:
             # b. create a default tqdm kwargs
             tqdm_kwargs = {
                 **{

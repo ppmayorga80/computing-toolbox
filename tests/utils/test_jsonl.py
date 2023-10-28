@@ -3,10 +3,12 @@ import json
 import os
 from dataclasses import dataclass, asdict
 from datetime import date, timedelta
+from unittest.mock import patch
 
 import jsons
 
-from computing_toolbox.utils.jsonl import Jsonl, _jsonl_parse_one_line, _jsonl_dumps_one_object
+from computing_toolbox.utils.jsonl import Jsonl, _jsonl_parse_one_line, _jsonl_dumps_one_object, _split_str, \
+    _parse_documents
 
 
 def test_write_read_and_count_lines(tmp_path):
@@ -164,3 +166,127 @@ def test_parallel_write(tmp_path):
     assert n_bytes > 0
     data = Jsonl.read(path)
     assert data == fibs
+
+
+def test_split_str():
+    """test the _split_str method"""
+    content = "hello\nworld"
+    lines = _split_str((content, ))
+    assert lines == ["hello", "world"]
+
+
+def test_parse_document():
+    """test the parse_document method"""
+    lines = ['{"name":"hello"}', '{"name":"world"}']
+    documents = _parse_documents(lines)
+    assert len(documents) == 2
+    assert documents[0] == {"name": "hello"}
+    assert documents[1] == {"name": "world"}
+
+
+@patch('computing_toolbox.utils.jsonl.Pool')
+@patch("computing_toolbox.utils.jsonl.GsAsync.read")
+def test_async_read_no_tqdm(async_read_mock, pool_mock):
+    """test async read method"""
+    # 1. load documents for testing
+    # 1.1 get local paths
+    local_paths = [
+        os.path.join(os.path.dirname(__file__),
+                     "prime-numbers-up-to-20.jsonl"),
+        os.path.join(os.path.dirname(__file__),
+                     "fibonacci-numbers-up-to-20.jsonl")
+    ]
+    # 1.2 read content strings
+    raw_contents = []
+    for path in local_paths:
+        with open(path, "r", encoding="utf8") as fp:
+            content = fp.read()
+        raw_contents.append(content)
+    # 1.3 split contents by lines
+    raw_lines = [x.split("\n") for x in raw_contents]
+    # 1.4 expected documents
+    expected_documents = [[json.loads(xk) for xk in x] for x in raw_lines]
+    # 1.5 mock the async read method with the raw contents
+    async_read_mock.return_value = raw_contents
+    # 1.6 mock the multiprocessing Pool.map with a) raw_lines and b) dictionary documents
+    pool_mock.return_value.__enter__.return_value.map.side_effect = [
+        raw_lines, expected_documents
+    ]
+    # 1.7 define what we expect from documents
+    primes = [x["value"] for x in expected_documents[0]]
+    fibos = [x["value"] for x in expected_documents[1]]
+
+    # 2. define some unreal cloud paths
+    paths = [
+        "gs://my/bucket/json/primes/prime-numbers-up-to-20.jsonl",
+        "gs://my/bucket/json/fibonacci/fibonacci-numbers-up-to-20.jsonl"
+    ]
+
+    # 3. perform async_read
+    documents = Jsonl.async_read(paths)
+    # 3.1 test if we read 2 paths
+    assert len(documents) == len(paths)
+    # 3.2 test if we have the list of primes in the first document
+    assert isinstance(documents[0], list)
+    assert len(documents[0]) == len(primes)
+    assert all(xk == fk
+               for xk, fk in zip(primes, [a["value"] for a in documents[0]]))
+    # 3.3 test if we have the list of fibonacci's in the second document
+    assert isinstance(documents[1], list)
+    assert len(documents[1]) == len(fibos)
+    assert all(yk == fk
+               for yk, fk in zip(fibos, [a["value"] for a in documents[1]]))
+
+
+@patch('computing_toolbox.utils.jsonl.Pool')
+@patch("computing_toolbox.utils.jsonl.GsAsync.read")
+def test_async_read_with_tqdm(async_read_mock, pool_mock):
+    """test async read method"""
+    # 1. load documents for testing
+    # 1.1 get local paths
+    local_paths = [
+        os.path.join(os.path.dirname(__file__),
+                     "prime-numbers-up-to-20.jsonl"),
+        os.path.join(os.path.dirname(__file__),
+                     "fibonacci-numbers-up-to-20.jsonl")
+    ]
+    # 1.2 read content strings
+    raw_contents = []
+    for path in local_paths:
+        with open(path, "r", encoding="utf8") as fp:
+            content = fp.read()
+        raw_contents.append(content)
+    # 1.3 split contents by lines
+    raw_lines = [x.split("\n") for x in raw_contents]
+    # 1.4 expected documents
+    expected_documents = [[json.loads(xk) for xk in x] for x in raw_lines]
+    # 1.5 mock the async read method with the raw contents
+    async_read_mock.return_value = raw_contents
+    # 1.6 mock the multiprocessing Pool.map with a) raw_lines and b) dictionary documents
+    pool_mock.return_value.__enter__.return_value.imap.side_effect = [
+        raw_lines, expected_documents
+    ]
+    # 1.7 define what we expect from documents
+    primes = [x["value"] for x in expected_documents[0]]
+    fibos = [x["value"] for x in expected_documents[1]]
+
+    # 2. define some unreal cloud paths
+    paths = [
+        "gs://my/bucket/json/primes/prime-numbers-up-to-20.jsonl",
+        "gs://my/bucket/json/fibonacci/fibonacci-numbers-up-to-20.jsonl"
+    ]
+
+    # 3. perform async_read
+    documents = Jsonl.async_read(paths, tqdm_kwargs={})
+    # 3.1 test if we read 2 paths
+    assert len(documents) == len(paths)
+    # 3.2 test if we have the list of primes in the first document
+    assert isinstance(documents[0], list)
+    assert len(documents[0]) == len(primes)
+    assert all(xk == fk
+               for xk, fk in zip(primes, [a["value"] for a in documents[0]]))
+    # 3.3 test if we have the list of fibonacci's in the second document
+    assert isinstance(documents[1], list)
+    assert len(documents[1]) == len(fibos)
+    assert all(yk == fk
+               for yk, fk in zip(fibos, [a["value"] for a in documents[1]]))
