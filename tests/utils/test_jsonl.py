@@ -171,7 +171,7 @@ def test_parallel_write(tmp_path):
 def test_split_str():
     """test the _split_str method"""
     content = "hello\nworld"
-    lines = _split_str((content, ))
+    lines = _split_str(content)
     assert lines == ["hello", "world"]
 
 

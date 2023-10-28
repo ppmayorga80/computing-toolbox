@@ -31,7 +31,7 @@ def _jsonl_dumps_one_object(args):
 
 def _split_str(args):
     """split string"""
-    text, = args
+    text = args
     lines = text.split('\n')
     return lines
 
