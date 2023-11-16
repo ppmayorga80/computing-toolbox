@@ -210,11 +210,14 @@ class GsAsync:
         # 1. define the timeout
         timeout = timeout if timeout else cls.DEFAULT_TIMEOUT
 
+        batch_tqdm_kwargs = tqdm_kwargs if tqdm_kwargs is not None else {
+            "desc": f"async read batch_size={batch_size}",
+            "position": 0,
+            "leave": False
+        }
+
         results = []
-        for k in tqdm(range(0, len(paths), batch_size),
-                      desc=f"async read batch_size={batch_size}",
-                      position=0,
-                      leave=True):
+        for k in tqdm(range(0, len(paths), batch_size), **batch_tqdm_kwargs):
             # 2.1 define the subset
             path_subset = paths[k:k + batch_size]
             subset_len = len(path_subset)
@@ -226,8 +229,8 @@ class GsAsync:
                     "position": 1,
                     "leave": False
                 },
-                **tqdm_kwargs
-            } if tqdm_kwargs is not None else tqdm_kwargs
+                **batch_tqdm_kwargs
+            } if batch_tqdm_kwargs is not None else batch_tqdm_kwargs
             n_it = range(subset_len)
             tqdm_pbar = None if tqdm_kwargs_subset is None else tqdm(
                 n_it, **tqdm_kwargs_subset)
