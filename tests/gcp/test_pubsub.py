@@ -6,7 +6,7 @@ from unittest.mock import patch, MagicMock
 import jsons
 import pandas as pd
 
-from computing_toolbox.gcp.pubsub import PubSub
+from computing_toolbox.gcp.pubsub import PubSub, callback
 
 
 class TestPubSub:
@@ -72,3 +72,29 @@ class TestPubSub:
         mock_client.return_value.pull.return_value.received_messages = []
         data = queue.pop()
         assert not data
+
+    def test_callback(self):
+        """test the callback function"""
+        future_obj = MagicMock()
+        future_obj.result.return_value = "hello"
+
+        response = callback(future=future_obj)
+        assert response == "hello"
+
+    @patch("computing_toolbox.gcp.pubsub.pubsub_v1.PublisherClient")
+    @patch("computing_toolbox.gcp.pubsub.callback")
+    @patch("computing_toolbox.gcp.pubsub.futures")
+    def test_push_many(self, mock_futures, mock_callback, mock_client):
+        """test how to push many messages in batches"""
+        n = 13
+        expected_id = "abc"
+        expected_responses = [f"{expected_id}-{k}" for k in range(n)]
+
+        mock_client.return_value.publish.return_value.result.return_value = expected_id
+        mock_callback.return_value = "123"
+        mock_futures.wait.return_value = expected_responses
+
+        messages = [{"number": k} for k in range(n)]
+        queue = PubSub("my-project", "my-topic")
+        responses = queue.push_many(messages)
+        assert all(responses)

@@ -2,11 +2,18 @@
 """Handle PubSub messages"""
 import datetime
 
+from concurrent import futures
+
 import jsons
 from google.api_core import retry
 from google.cloud import monitoring_v3
-from google.cloud import pubsub_v1
 from google.cloud.monitoring_v3 import query
+from google.cloud import pubsub_v1
+
+
+def callback(future: pubsub_v1.publisher.futures.Future) -> str:
+    message_id = future.result()
+    return message_id
 
 
 class PubSub:
@@ -72,6 +79,33 @@ class PubSub:
 
         message_id = future.result()
         return message_id != 0
+
+    def push_many(self,
+                  documents: list[dict],
+                  batch_size: int = 100) -> list[bool]:
+        """Push many messages in a pubsub"""
+        batch_settings = pubsub_v1.types.BatchSettings(
+            max_messages=batch_size,  # default 100
+            max_bytes=1 * 1024 * 1024,  # default 1 MB
+            max_latency=1.0,  # default 10 ms
+        )
+        publisher = pubsub_v1.PublisherClient(batch_settings)
+        topic_path = publisher.topic_path(self.project_id, self.topic_id)
+        publish_futures = []
+
+        for body in documents:
+            data_str = jsons.dumps(body)
+            # Data must be a bytestring
+            data = data_str.encode("utf-8")
+            publish_future = publisher.publish(topic_path, data)
+            # Non-blocking. Allow the publisher client to batch multiple messages.
+            publish_future.add_done_callback(callback)
+            publish_futures.append(publish_future)
+
+        responses = futures.wait(publish_futures,
+                                 return_when=futures.ALL_COMPLETED)
+        results = [bool(x) for x in responses]
+        return results
 
     def pop(self) -> dict:
         """read the last message"""
