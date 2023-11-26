@@ -82,3 +82,18 @@ class Gs:
                 _ = blob_pbar_it.set_postfix_str(
                     f"🟢x{success}") if blob_pbar_it else None
                 yield filename
+
+    @classmethod
+    def rm(cls, path: str) -> bool:
+        """remove an object from gcp"""
+        bucket_name, blob_name = cls.split(path)
+
+        try:
+            storage_client = storage.Client()
+            bucket = storage_client.bucket(bucket_name)
+            blob = bucket.blob(blob_name)
+            blob.delete()
+            return True
+        except Exception:
+            pass
+        return False

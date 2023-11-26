@@ -1,6 +1,6 @@
 """testing the gs_async.py file"""
 from unittest.mock import patch
-
+import gcloud.aio.storage
 from computing_toolbox.gcp.gs_async import GsAsync
 
 
@@ -64,3 +64,28 @@ def test_write_bad(mock_storage):
     contents = ["hello", "world"]
     data = GsAsync.write(files, contents)
     assert all(x is None for x in data)
+
+
+def raise_exception():
+    raise ValueError("Can't delete the file")
+
+
+@patch.object(gcloud.aio.storage.Storage, "delete")
+def test_rm_ok(mock_delete):
+    """testing how to delete some files"""
+    # 1. deleting files successfully
+    # 1.1 mocking the storage
+    mock_delete.return_value = True
+
+    # 1.2 deleting the files
+    files = ["gs://file/1", "gs://file/2"]
+    responses = GsAsync.rm(paths=files)
+    assert all(x for x in responses)
+
+    # 1. deleting files successfully
+    # 1.1 mocking the storage to raise an exception
+    mock_delete.side_effect = raise_exception
+    # 1.2 deleting the files
+    files = ["gs://file/1", "gs://file/2"]
+    responses = GsAsync.rm(paths=files)
+    assert all(not x for x in responses)

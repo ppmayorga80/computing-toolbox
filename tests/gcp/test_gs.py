@@ -81,3 +81,22 @@ class TestGS:
             x for x in Gs.list_files("gs://hello", re_filter=r"\.gz$")
         ]
         assert filenames == expected_filenames[-1:]
+
+    @patch("computing_toolbox.gcp.gs.storage")
+    def test_rm(self, mock_storage):
+        """test rm files"""
+        # 1. test true delete
+        # 1.1 mocking the API
+        mock_storage.Client.return_value.bucket.return_value.blob.return_value.delete.return_value = True
+        # 1.2 test it
+        path = "gs://my-bucket/dir1/dir2/file.txt"
+        response = Gs.rm(path)
+        assert response is True
+
+        # 2. test false delete
+        # 2.1 mocking the API causing an exception
+        mock_storage.Client.return_value.bucket.return_value.blob.return_value.delete.side_effect = raise_error
+        # 1.2 test it
+        path = "gs://my-bucket/dir1/dir2/file.txt"
+        response = Gs.rm(path)
+        assert response is False
