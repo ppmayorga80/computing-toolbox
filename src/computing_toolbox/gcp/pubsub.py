@@ -1,6 +1,7 @@
 # Copyright (c) 2021-present Divinia, Inc.
 """Handle PubSub messages"""
 import datetime
+import logging
 
 from concurrent import futures
 
@@ -9,6 +10,7 @@ from google.api_core import retry
 from google.cloud import monitoring_v3
 from google.cloud.monitoring_v3 import query
 from google.cloud import pubsub_v1
+from tqdm import tqdm
 
 
 def callback(future: pubsub_v1.publisher.futures.Future) -> str:
@@ -82,7 +84,8 @@ class PubSub:
 
     def push_many(self,
                   documents: list[dict],
-                  batch_size: int = 100) -> list[bool]:
+                  batch_size: int = 100,
+                  tqdm_kwargs: dict or None = None) -> list[bool]:
         """Push many messages in a pubsub"""
         batch_settings = pubsub_v1.types.BatchSettings(
             max_messages=batch_size,  # default 100
@@ -93,8 +96,23 @@ class PubSub:
         topic_path = publisher.topic_path(self.project_id, self.topic_id)
         publish_futures = []
 
-        for body in documents:
-            data_str = jsons.dumps(body)
+        queue_str = f"'{self.topic_id}.{self.subscription_id}'"
+        n_documents = len(documents)
+
+        tqdm_kwargs_default = {
+            "desc": f"Pushing to {queue_str}",
+            "total": n_documents
+        }
+        tqdm_kwargs_final = {
+            **tqdm_kwargs_default,
+            **tqdm_kwargs
+        } if tqdm_kwargs is not None else None
+
+        pbar_it = documents if tqdm_kwargs is None else tqdm(
+            documents, **tqdm_kwargs_final)
+
+        for document in pbar_it:
+            data_str = jsons.dumps(document)
             # Data must be a bytestring
             data = data_str.encode("utf-8")
             publish_future = publisher.publish(topic_path, data)
@@ -102,9 +120,15 @@ class PubSub:
             publish_future.add_done_callback(callback)
             publish_futures.append(publish_future)
 
+        msg = f"Wait while {queue_str} finished to push {n_documents} messages"
+        logging.info(msg)
         responses = futures.wait(publish_futures,
                                  return_when=futures.ALL_COMPLETED)
         results = [bool(x) for x in responses]
+
+        n_success = sum(results)
+        msg = f"{queue_str} Pushes {n_success}/{n_documents} messages🟢"
+        logging.info(msg)
         return results
 
     def pop(self) -> dict:
