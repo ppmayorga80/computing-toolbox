@@ -1,0 +1,5 @@
+scripts:
+  version: python -c "from computing_toolbox import __version__;print(__version__)"
+  yapf: bash scripts/yapf.sh --apply
+  pylint: bash scripts/pylint.sh
+  pytest: bash scripts/pytest.sh

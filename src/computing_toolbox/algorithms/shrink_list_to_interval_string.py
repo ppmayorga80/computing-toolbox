@@ -44,3 +44,31 @@ def shrink_list_to_interval_string(interval: list[int],
     shrink_intervals_str = list_separator.join(shrink_intervals)
 
     return shrink_intervals_str
+
+
+def interval_string_to_shrink_list(interval_string: str,
+                                   range_separator: str = "-",
+                                   list_separator: str = ",") -> list[int]:
+    """given the interval string, this function return a list of expanded int values
+    input: '1-3,5-10,15,18-20'
+    output: [1,2,3,5,6,7,8,9,10,15,18,19,20]
+    """
+    # 1. parse the separator string
+    sub_interval_strings = [
+        x.strip().split(range_separator)
+        for x in interval_string.split(list_separator)
+    ]
+    # 2. check if there are bad separator lists
+    bad_format = [1 for x in sub_interval_strings if len(x) > 2]
+    if bad_format:
+        raise ValueError("Format string must be of the form 'A-B'")
+    # 3. parse the range strings
+    sub_interval_expanded = [(int(x[0]), int(x[0])) if len(x) == 1 else
+                             (int(x[0]), int(x[1]))
+                             for x in sub_interval_strings]
+    # 4. build the output values
+    values = [
+        xk for a, b in sub_interval_expanded for xk in list(range(a, b + 1))
+    ]
+
+    return values
