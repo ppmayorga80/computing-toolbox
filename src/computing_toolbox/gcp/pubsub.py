@@ -85,8 +85,10 @@ class PubSub:
     def push_many(self,
                   documents: list[dict],
                   batch_size: int = 100,
-                  tqdm_kwargs: dict or None = None) -> list[bool]:
-        """Push many messages in a pubsub"""
+                  tqdm_kwargs: dict or None = None) -> tuple[int, int]:
+        """Push many messages in a pubsub return the number of
+        done messages and not done messages
+        """
         batch_settings = pubsub_v1.types.BatchSettings(
             max_messages=batch_size,  # default 100
             max_bytes=1 * 1024 * 1024,  # default 1 MB
@@ -122,14 +124,14 @@ class PubSub:
 
         msg = f"Wait while {queue_str} finished to push {n_documents} messages"
         logging.info(msg)
-        responses = futures.wait(publish_futures,
-                                 return_when=futures.ALL_COMPLETED)
-        results = [bool(x) for x in responses]
+        responses_done, responses_not_done = futures.wait(
+            publish_futures, return_when=futures.ALL_COMPLETED)
 
-        n_success = sum(results)
-        msg = f"{queue_str} Pushes {n_success}/{n_documents} messages🟢"
+        n_done = len(responses_done)
+        n_not_done = len(responses_not_done)
+        msg = f"{queue_str} Pushes {n_done}/{n_documents} messages🟢"
         logging.info(msg)
-        return results
+        return n_done, n_not_done
 
     def pop(self) -> dict:
         """read the last message"""

@@ -87,14 +87,14 @@ class TestPubSub:
     def test_push_many(self, mock_futures, mock_callback, mock_client):
         """test how to push many messages in batches"""
         n = 13
-        expected_id = "abc"
-        expected_responses = [f"{expected_id}-{k}" for k in range(n)]
+        expected_id = "x23"
 
         mock_client.return_value.publish.return_value.result.return_value = expected_id
-        mock_callback.return_value = "123"
-        mock_futures.wait.return_value = expected_responses
+        mock_callback.return_value = expected_id
+        mock_futures.wait.return_value = [expected_id for _ in range(n)], []
 
         messages = [{"number": k} for k in range(n)]
         queue = PubSub("my-project", "my-topic")
-        responses = queue.push_many(messages)
-        assert all(responses)
+        done, not_done = queue.push_many(messages)
+        assert done == n
+        assert not_done == 0
