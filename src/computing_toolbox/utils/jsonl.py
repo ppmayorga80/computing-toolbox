@@ -214,7 +214,19 @@ class Jsonl:
             _ = [_ for _, _ in zip(range(offset), fp)]
             # b. read up to `limit` lines
             limit_it = count() if limit is None else range(limit)
-            lines = [line for _, line in zip(limit_it, fp)]
+            zip_it = zip(limit_it, fp)
+
+            tqdm_kwargs = {
+                **{
+                    "total": limit,
+                    "desc": "reading lines"
+                },
+                **tqdm_kwargs
+            } if tqdm_kwargs is not None else None
+            zip_it = tqdm(zip_it, **
+                          tqdm_kwargs) if tqdm_kwargs is not None else zip_it
+
+            lines = [line for _, line in zip_it]
 
         n = len(lines)
 
