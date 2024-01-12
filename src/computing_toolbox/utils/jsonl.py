@@ -216,15 +216,16 @@ class Jsonl:
             limit_it = count() if limit is None else range(limit)
             zip_it = zip(limit_it, fp)
 
-            tqdm_kwargs = {
+            reading_tqdm_kwargs = {
                 **{
                     "total": limit,
                     "desc": "reading lines"
                 },
                 **tqdm_kwargs
             } if tqdm_kwargs is not None else None
-            zip_it = tqdm(zip_it, **
-                          tqdm_kwargs) if tqdm_kwargs is not None else zip_it
+            zip_it = tqdm(
+                zip_it, **
+                reading_tqdm_kwargs) if tqdm_kwargs is not None else zip_it
 
             lines = [line for _, line in zip_it]
 
