@@ -85,7 +85,7 @@ class PubSub:
     def _push_many_raw(self,
                        documents: list[dict],
                        batch_size: int = 100,
-                       tqdm_kwargs: dict or None = None) -> tuple[int, int]:
+                       pbar: tqdm or None = None) -> tuple[int, int]:
         """Push many messages in a pubsub return the number of
         done messages and not done messages
         """
@@ -101,19 +101,8 @@ class PubSub:
         queue_str = f"'{self.topic_id}.{self.subscription_id}'"
         n_documents = len(documents)
 
-        tqdm_kwargs_default = {
-            "desc": f"Pushing to {queue_str}",
-            "total": n_documents
-        }
-        tqdm_kwargs_final = {
-            **tqdm_kwargs_default,
-            **tqdm_kwargs
-        } if tqdm_kwargs is not None else None
-
-        pbar_it = documents if tqdm_kwargs is None else tqdm(
-            documents, **tqdm_kwargs_final)
-
-        for document in pbar_it:
+        for document in documents:
+            _ = pbar.update() if pbar else None
             data_str = jsons.dumps(document)
             # Data must be a bytestring
             data = data_str.encode("utf-8")
@@ -139,15 +128,30 @@ class PubSub:
                   batch_size: int = 1000,
                   tqdm_kwargs: dict or None = None) -> tuple[int, int]:
         """push many messages in batches"""
+        #1. define variables
+        n_documents = len(documents)
         queue_str = f"'{self.topic_id}.{self.subscription_id}'"
+
+        #2. configure progress bar
+        tqdm_kwargs_default = {
+            "desc": f"Pushing to {queue_str}",
+            "total": n_documents
+        }
+        tqdm_kwargs_final = {
+            **tqdm_kwargs_default,
+            **tqdm_kwargs
+        } if tqdm_kwargs is not None else None
+        pbar_it = tqdm(range(n_documents), **
+                       tqdm_kwargs_final) if tqdm_kwargs is not None else None
+
+        #3. create the batch loop
         n_done, n_not_done = 0, 0
         total_range = list(range(0, len(documents), batch_size))
         for k in total_range:
             documents_k = documents[k:k + batch_size]
             msg = f"{queue_str}: Iteration {k + 1}/{len(total_range)}"
             logging.info(msg)
-            ak, bk = self._push_many_raw(documents=documents_k,
-                                         tqdm_kwargs=tqdm_kwargs)
+            ak, bk = self._push_many_raw(documents=documents_k, pbar=pbar_it)
             n_done, n_not_done = n_done + ak, n_not_done + bk
 
         icon = "🟢" if n_not_done == 0 else ("🔴" if n_done == 0 else "⭕️")
