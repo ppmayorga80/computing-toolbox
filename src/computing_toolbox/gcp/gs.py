@@ -63,7 +63,8 @@ class Gs:
         tqdm_kwargs = {
             **{
                 "desc": "Listing"
-            }
+            },
+            **tqdm_kwargs
         } if tqdm_kwargs is not None else tqdm_kwargs
         blob_pbar_it = tqdm(count(), **
                             tqdm_kwargs) if tqdm_kwargs is not None else None
