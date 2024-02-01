@@ -98,21 +98,22 @@ class PubSub:
         topic_path = publisher.topic_path(self.project_id, self.topic_id)
         publish_futures = []
 
-        queue_str = f"'{self.topic_id}.{self.subscription_id}'"
-        n_documents = len(documents)
+        # queue_str = f"'{self.topic_id}.{self.subscription_id}'"
+        # n_documents = len(documents)
 
         for document in documents:
+            # update progressbar
             _ = pbar.update() if pbar else None
+            #convert document to json string, then, convert to byte string
             data_str = jsons.dumps(document)
-            # Data must be a bytestring
             data = data_str.encode("utf-8")
             publish_future = publisher.publish(topic_path, data)
             # Non-blocking. Allow the publisher client to batch multiple messages.
             publish_future.add_done_callback(callback)
             publish_futures.append(publish_future)
 
-        msg = f"Wait while {queue_str} finished to push {n_documents} messages"
-        logging.info(msg)
+        # msg = f"Wait while {queue_str} finished to push {n_documents} messages"
+        # logging.info(msg)
         responses_done, responses_not_done = futures.wait(
             publish_futures, return_when=futures.ALL_COMPLETED)
 
@@ -148,11 +149,22 @@ class PubSub:
         n_done, n_not_done = 0, 0
         total_range = list(range(0, len(documents), batch_size))
         for k in total_range:
+            #get the subset of documents to publish
             documents_k = documents[k:k + batch_size]
+
+            #display logging messages if not progress bar
             msg = f"{queue_str}: Iteration {k + 1}/{len(total_range)}"
-            logging.info(msg)
+            _ = logging.info(msg) if pbar_it is None else None
+
+            #call the push_many raw function
             ak, bk = self._push_many_raw(documents=documents_k, pbar=pbar_it)
             n_done, n_not_done = n_done + ak, n_not_done + bk
+
+            #put a message in the progress bar
+            msg1 = "" if n_done == 0 else f"🟢x{n_done}"
+            msg2 = "" if n_not_done == 0 else f"🔴x{n_not_done}"
+            _ = pbar_it.set_postfix_str(
+                f"Messages: {msg1} {msg2}") if pbar_it is not None else None
 
         icon = "🟢" if n_not_done == 0 else ("🔴" if n_done == 0 else "⭕️")
         msg = f"{queue_str} Pushes {n_done}/{len(documents)} messages {icon}"
