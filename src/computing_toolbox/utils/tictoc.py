@@ -4,7 +4,7 @@ import time
 from collections import defaultdict
 
 # configure logging with INFO level to show verbose messages
-logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.INFO)
 # define global dictionaries
 tictoc_dict = defaultdict(float)
 t0_verbose_dict = defaultdict(bool)
