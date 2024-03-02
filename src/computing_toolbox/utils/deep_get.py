@@ -34,7 +34,7 @@ def deep_get(obj: Union[dict, list], path: list[Union[str, int]],
                 tmp_obj = tmp_obj[k]
             else:
                 return default_value
-        elif isinstance(tmp_obj, list) and isinstance(k, int):
+        elif isinstance(tmp_obj, (list, tuple)) and isinstance(k, int):
             if 0 <= k < len(tmp_obj):
                 tmp_obj = tmp_obj[k]
             else:
