@@ -2,6 +2,7 @@
 to handle read and write operations on local and cloud files
 in both format: plain or compressed (gzip)
 """
+import os
 import logging
 from multiprocessing import cpu_count, Pool
 from itertools import count
@@ -163,6 +164,13 @@ class Jsonl:
             },
             **tqdm_kwargs
         } if tqdm_kwargs is not None else tqdm_kwargs
+
+        #*** create directory if necessary ***
+        create_dir_fn = lambda x: os.makedirs(
+            os.path.dirname(x), exist_ok=True) if os.path.abspath(
+                path).startswith('/') else ""
+        create_dir_fn(path)
+
         # 3. open the file if writing or append mode
         with smart_open.open(path, mode="w" if not append_mode else "a") as fp:
             # 3.1 define the iterator (tqdm(data) or data)
@@ -331,6 +339,12 @@ class Jsonl:
                          **tqdm_kwargs))
             else:
                 lines = pool.map(_jsonl_dumps_one_object, data)
+
+            #*** create directory if necessary ***
+            create_dir_fn = lambda x: os.makedirs(
+                os.path.dirname(x), exist_ok=True) if os.path.abspath(
+                    path).startswith('/') else ""
+            create_dir_fn(path)
 
             msg = f"writting content to '{path}'"
             logging.info(msg)
