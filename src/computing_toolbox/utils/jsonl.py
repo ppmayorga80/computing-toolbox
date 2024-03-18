@@ -79,7 +79,7 @@ class Jsonl:
              mapping_class: Optional[T] = None,
              offset: int = 0,
              limit: Optional[int] = None,
-             tqdm_kwargs: Optional[dict] = None) -> list[Union[dict, T]]:
+             tqdm_kwargs: Optional[dict] = None) -> Union[list[dict],list[T]]:
         """read a json line file
         if provided offset and/or limit, this method jumps the first `offset` lines
         and only return (at most) `limit` number of objects mapping to a given class `mapping_class`
@@ -201,7 +201,7 @@ class Jsonl:
             offset: int = 0,
             limit: Optional[int] = None,
             workers: Optional[int] = None,
-            tqdm_kwargs: Optional[dict] = None) -> list[Union[dict, T]]:
+            tqdm_kwargs: Optional[dict] = None) -> Union[list[dict],list[T]]:
         """
         read a jsonl in parallel
         to optimize this process we divide it in two main steps:
