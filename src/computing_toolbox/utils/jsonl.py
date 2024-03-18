@@ -6,7 +6,7 @@ import os
 import logging
 from multiprocessing import cpu_count, Pool
 from itertools import count
-from typing import Any
+from typing import Optional, TypeVar, Union
 
 import json
 import jsons
@@ -14,6 +14,8 @@ import smart_open
 from tqdm import tqdm
 
 from computing_toolbox.gcp.gs_async import GsAsync
+
+T = TypeVar('T')
 
 
 def _jsonl_parse_one_line(args):
@@ -48,7 +50,7 @@ class Jsonl:
     """class that concentrates common json line operations"""
 
     @classmethod
-    def count_lines(cls, path: str, tqdm_kwargs: dict or None = None) -> int:
+    def count_lines(cls, path: str, tqdm_kwargs: Optional[dict] = None) -> int:
         """count the number of lines if the path provided
 
         :param path: the file path to be read
@@ -74,10 +76,10 @@ class Jsonl:
     @classmethod
     def read(cls,
              path: str,
-             mapping_class: Any = None,
+             mapping_class: Optional[T] = None,
              offset: int = 0,
-             limit: int or None = None,
-             tqdm_kwargs: dict or None = None) -> list[dict]:
+             limit: Optional[int] = None,
+             tqdm_kwargs: Optional[dict] = None) -> list[Union[dict, T]]:
         """read a json line file
         if provided offset and/or limit, this method jumps the first `offset` lines
         and only return (at most) `limit` number of objects mapping to a given class `mapping_class`
@@ -134,9 +136,9 @@ class Jsonl:
     @classmethod
     def write(cls,
               path: str,
-              data: list[dict or object],
+              data: list[Union[dict, T]],
               append_mode: bool = False,
-              tqdm_kwargs: dict or None = None) -> int:
+              tqdm_kwargs: Optional[dict] = None) -> int:
         """write a json line file
         converting every dict in data to a string and send it to the file.
 
@@ -192,13 +194,14 @@ class Jsonl:
         return n_data
 
     @classmethod
-    def parallel_read(cls,
-                      path: str,
-                      mapping_class: Any = None,
-                      offset: int = 0,
-                      limit: int or None = None,
-                      workers: int or None = None,
-                      tqdm_kwargs: dict or None = None) -> list[dict]:
+    def parallel_read(
+            cls,
+            path: str,
+            mapping_class: Optional[T] = None,
+            offset: int = 0,
+            limit: Optional[int] = None,
+            workers: Optional[int] = None,
+            tqdm_kwargs: Optional[dict] = None) -> list[Union[dict, T]]:
         """
         read a jsonl in parallel
         to optimize this process we divide it in two main steps:
@@ -266,8 +269,8 @@ class Jsonl:
     @classmethod
     def async_read(cls,
                    paths: list[str],
-                   workers: int or None = None,
-                   tqdm_kwargs: dict or None = None) -> list[dict]:
+                   workers: Optional[int] = None,
+                   tqdm_kwargs: Optional[dict] = None) -> list[dict]:
         """read a list of paths asynchronously"""
         # define the number of workers to be used
         workers = workers if workers is not None else cpu_count()
@@ -314,9 +317,9 @@ class Jsonl:
     @classmethod
     def parallel_write(cls,
                        path: str,
-                       data: list[dict or object],
-                       workers: int or None = None,
-                       tqdm_kwargs: dict or None = None) -> int:
+                       data: list[Union[dict, T]],
+                       workers: Optional[int] = None,
+                       tqdm_kwargs: Optional[dict] = None) -> int:
         """write in parallel"""
         workers = workers if workers is not None else cpu_count()
         data = data if isinstance(data, list) else [data]
