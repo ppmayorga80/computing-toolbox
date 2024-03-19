@@ -6,7 +6,7 @@ import os
 import logging
 from multiprocessing import cpu_count, Pool
 from itertools import count
-from typing import Optional, TypeVar, Union
+from typing import Optional, Type, TypeVar, Union
 
 import json
 import jsons
@@ -197,7 +197,7 @@ class Jsonl:
     def parallel_read(
             cls,
             path: str,
-            mapping_class: Optional[T] = None,
+            mapping_class: Optional[Type[T]] = None,
             offset: int = 0,
             limit: Optional[int] = None,
             workers: Optional[int] = None,
