@@ -3,3 +3,8 @@ scripts:
   yapf: bash scripts/yapf.sh --apply
   pylint: bash scripts/pylint.sh
   pytest: bash scripts/pytest.sh
+
+  deploy: 
+    - rav run yapf
+    - rav run pylint
+    - rav run pytest

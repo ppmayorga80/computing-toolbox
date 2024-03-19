@@ -6,7 +6,7 @@ import os
 import logging
 from multiprocessing import cpu_count, Pool
 from itertools import count
-from typing import Optional, Type
+from typing import Optional, TypeVar, Union
 
 import json
 import jsons
@@ -14,6 +14,8 @@ import smart_open
 from tqdm import tqdm
 
 from computing_toolbox.gcp.gs_async import GsAsync
+
+T = TypeVar("T")
 
 
 def _jsonl_parse_one_line(args):
@@ -74,10 +76,10 @@ class Jsonl:
     @classmethod
     def read(cls,
              path: str,
-             mapping_class: Type = None,
+             mapping_class: Optional[T] = None,
              offset: int = 0,
              limit: Optional[int] = None,
-             tqdm_kwargs: Optional[dict] = None) -> list[Type]:
+             tqdm_kwargs: Optional[dict] = None) -> list[T | dict]:
         """read a json line file
         if provided offset and/or limit, this method jumps the first `offset` lines
         and only return (at most) `limit` number of objects mapping to a given class `mapping_class`
@@ -165,7 +167,7 @@ class Jsonl:
             **tqdm_kwargs
         } if tqdm_kwargs is not None else tqdm_kwargs
 
-        #*** create directory if necessary ***
+        # *** create directory if necessary ***
         create_dir_fn = lambda x: os.makedirs(
             os.path.dirname(x), exist_ok=True) if os.path.abspath(
                 path).startswith('/') else ""
@@ -192,13 +194,14 @@ class Jsonl:
         return n_data
 
     @classmethod
-    def parallel_read(cls,
-                      path: str,
-                      mapping_class: Type = dict,
-                      offset: int = 0,
-                      limit: Optional[int] = None,
-                      workers: Optional[int] = None,
-                      tqdm_kwargs: Optional[dict] = None) -> list[Type]:
+    def parallel_read(
+            cls,
+            path: str,
+            mapping_class: Optional[T] = None,
+            offset: int = 0,
+            limit: Optional[int] = None,
+            workers: Optional[int] = None,
+            tqdm_kwargs: Optional[dict] = None) -> Union[list[T], list[dict]]:
         """
         read a jsonl in parallel
         to optimize this process we divide it in two main steps:
@@ -213,6 +216,7 @@ class Jsonl:
         :param tqdm_kwargs: if defined, this dictionary will be passed to tqdm when read the file
         :return: the list of documents parsed as dictionary or the mapping class
         """
+
         # define the number of workers to be used
         workers = workers if workers is not None else cpu_count()
 
@@ -231,13 +235,13 @@ class Jsonl:
                 },
                 **tqdm_kwargs
             } if tqdm_kwargs is not None else None
+
             zip_it = tqdm(
                 zip_it, **
                 reading_tqdm_kwargs) if tqdm_kwargs is not None else zip_it
 
             lines = [line for _, line in zip_it]
-
-        n = len(lines)
+            n = len(lines)
 
         # 2. parse each line in parallel
         # a. create the list of parameters
@@ -340,7 +344,7 @@ class Jsonl:
             else:
                 lines = pool.map(_jsonl_dumps_one_object, data)
 
-            #*** create directory if necessary ***
+            # *** create directory if necessary ***
             create_dir_fn = lambda x: os.makedirs(
                 os.path.dirname(x), exist_ok=True) if os.path.abspath(
                     path).startswith('/') else ""
