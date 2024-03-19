@@ -6,7 +6,7 @@ import os
 import logging
 from multiprocessing import cpu_count, Pool
 from itertools import count
-from typing import Optional, TypeVar, Union
+from typing import Optional, Type
 
 import json
 import jsons
@@ -14,8 +14,6 @@ import smart_open
 from tqdm import tqdm
 
 from computing_toolbox.gcp.gs_async import GsAsync
-
-T = TypeVar('T')
 
 
 def _jsonl_parse_one_line(args):
@@ -76,10 +74,10 @@ class Jsonl:
     @classmethod
     def read(cls,
              path: str,
-             mapping_class: Optional[T] = None,
+             mapping_class: Type = None,
              offset: int = 0,
              limit: Optional[int] = None,
-             tqdm_kwargs: Optional[dict] = None) -> Union[list[dict],list[T]]:
+             tqdm_kwargs: Optional[dict] = None) -> list[Type]:
         """read a json line file
         if provided offset and/or limit, this method jumps the first `offset` lines
         and only return (at most) `limit` number of objects mapping to a given class `mapping_class`
@@ -136,7 +134,7 @@ class Jsonl:
     @classmethod
     def write(cls,
               path: str,
-              data: list[Union[dict, T]],
+              data: list,
               append_mode: bool = False,
               tqdm_kwargs: Optional[dict] = None) -> int:
         """write a json line file
@@ -194,14 +192,13 @@ class Jsonl:
         return n_data
 
     @classmethod
-    def parallel_read(
-            cls,
-            path: str,
-            mapping_class: Optional[T] = None,
-            offset: int = 0,
-            limit: Optional[int] = None,
-            workers: Optional[int] = None,
-            tqdm_kwargs: Optional[dict] = None) -> Union[list[dict],list[T]]:
+    def parallel_read(cls,
+                      path: str,
+                      mapping_class: Type = dict,
+                      offset: int = 0,
+                      limit: Optional[int] = None,
+                      workers: Optional[int] = None,
+                      tqdm_kwargs: Optional[dict] = None) -> list[Type]:
         """
         read a jsonl in parallel
         to optimize this process we divide it in two main steps:
@@ -317,7 +314,7 @@ class Jsonl:
     @classmethod
     def parallel_write(cls,
                        path: str,
-                       data: list[Union[dict, T]],
+                       data: list,
                        workers: Optional[int] = None,
                        tqdm_kwargs: Optional[dict] = None) -> int:
         """write in parallel"""
